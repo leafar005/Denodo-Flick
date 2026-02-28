@@ -1,0 +1,11 @@
+http://127.0.0.1:9090/denovo-design-studio
+
+http://127.0.0.1:9090/denovo-data-catalog
+
+answer metadata question
+
+docker
+
+poner descripcion a datos y columnas
+
+

@@ -1,0 +1,390 @@
+/* ════════════════════════════════════════════════════════════
+   DecisionLens — Frontend Logic
+   HackUDC 2026 - Reto Denodo
+   ════════════════════════════════════════════════════════════ */
+
+document.addEventListener("DOMContentLoaded", () => {
+    checkHealth();
+
+    // Auto-sync metadatos con "admin" al cargar
+    autoSyncMetadata();
+
+    // ── Escenarios ──────────────────────────────────────────
+    document.querySelectorAll(".scenario-card").forEach(card => {
+        card.addEventListener("click", () => {
+            const scenario = card.dataset.scenario;
+            showScenarioPreview(scenario);
+        });
+    });
+
+    // ── Custom decision secondary link ──────────────────────────
+    document.getElementById("btn-custom-link")?.addEventListener("click", () => {
+        showCustomForm();
+    });
+
+    // ── Preview buttons ─────────────────────────────────────
+    document.getElementById("btn-run-scenario").addEventListener("click", () => {
+        const scenario = document.getElementById("btn-run-scenario").dataset.scenario;
+        if (scenario) {
+            const params = collectScenarioParams();
+            runDecision(scenario, null, null, null, params);
+        }
+    });
+    document.getElementById("btn-preview-back").addEventListener("click", showScenarios);
+
+    // ── Custom form ─────────────────────────────────────────
+    document.getElementById("btn-custom-run").addEventListener("click", () => {
+        const question = document.getElementById("custom-question").value.trim();
+        if (!question) {
+            alert("Por favor, describe la decisión que necesitas tomar.");
+            return;
+        }
+
+        const metaRaw = document.getElementById("custom-metadata").value.trim();
+        const dataRaw = document.getElementById("custom-data").value.trim();
+
+        const metaQs = metaRaw ? metaRaw.split("\n").filter(l => l.trim()) : null;
+        const dataQs = dataRaw ? dataRaw.split("\n").filter(l => l.trim()) : null;
+
+        runDecision("custom", question, metaQs, dataQs);
+    });
+
+    document.getElementById("btn-back").addEventListener("click", showScenarios);
+    document.getElementById("btn-new")?.addEventListener("click", showScenarios);
+
+    // ── Pregunta libre (sin selector de fase) ───────────────
+    document.getElementById("btn-explore").addEventListener("click", exploreFree);
+    document.getElementById("explore-input").addEventListener("keydown", e => {
+        if (e.key === "Enter") exploreFree();
+    });
+});
+
+
+// ═══════════════════════════════════════════════════════════════
+// View selector helper
+// ═══════════════════════════════════════════════════════════════
+
+function getSelectedView() {
+    const sel = document.getElementById("view-select");
+    return sel ? sel.value || null : null;
+}
+
+
+// ═══════════════════════════════════════════════════════════════
+// Health check
+// ═══════════════════════════════════════════════════════════════
+
+async function checkHealth() {
+    const badge = document.getElementById("health-status");
+    try {
+        const res = await fetch("/api/health");
+        const data = await res.json();
+        if (data.denodo_ai_sdk === "connected") {
+            badge.className = "health-badge connected";
+            badge.querySelector(".text").textContent = "Denodo AI SDK conectado";
+        } else {
+            badge.className = "health-badge disconnected";
+            badge.querySelector(".text").textContent = "AI SDK desconectado — verifica Docker";
+        }
+    } catch {
+        badge.className = "health-badge disconnected";
+        badge.querySelector(".text").textContent = "Error de conexión";
+    }
+}
+
+
+// ═══════════════════════════════════════════════════════════════
+// Auto-sync metadata (silently on page load)
+// ═══════════════════════════════════════════════════════════════
+
+async function autoSyncMetadata() {
+    try {
+        await fetch(`/api/sync-metadata?database_names=admin`, { method: "POST" });
+    } catch {
+        // Silently ignore — health badge already shows connection status
+    }
+}
+
+
+// ═══════════════════════════════════════════════════════════════
+// Markdown rendering helper
+// ═══════════════════════════════════════════════════════════════
+
+function renderMarkdown(text) {
+    if (!text) return "";
+    if (typeof marked !== "undefined") {
+        return marked.parse(text);
+    }
+    // Basic fallback
+    return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\n/g, "<br>");
+}
+
+
+// ═══════════════════════════════════════════════════════════════
+// Navigation helpers
+// ═══════════════════════════════════════════════════════════════
+
+function hideAllSections() {
+    document.getElementById("scenario-section").classList.add("hidden");
+    document.getElementById("preview-section").classList.add("hidden");
+    document.getElementById("custom-section").classList.add("hidden");
+    document.getElementById("results-section").classList.add("hidden");
+}
+
+function showCustomForm() {
+    hideAllSections();
+    document.getElementById("custom-section").classList.remove("hidden");
+}
+
+function showScenarios() {
+    hideAllSections();
+    document.getElementById("scenario-section").classList.remove("hidden");
+    document.getElementById("results-content").classList.add("hidden");
+    document.getElementById("loading").classList.add("hidden");
+}
+
+function showResults() {
+    hideAllSections();
+    document.getElementById("results-section").classList.remove("hidden");
+}
+
+async function showScenarioPreview(scenarioKey) {
+    hideAllSections();
+    document.getElementById("preview-section").classList.remove("hidden");
+
+    // Fetch scenario details from backend
+    try {
+        const res = await fetch(`/api/scenarios/${scenarioKey}`);
+        const data = await res.json();
+
+        document.getElementById("preview-title").textContent = data.title;
+        document.getElementById("preview-description").textContent = data.description;
+
+        // Render parameters
+        const paramsWrapper = document.getElementById("preview-params-wrapper");
+        const paramsContainer = document.getElementById("preview-params");
+        paramsContainer.innerHTML = "";
+
+        const params = data.parameters || [];
+        if (params.length > 0) {
+            paramsWrapper.classList.remove("hidden");
+            params.forEach(param => {
+                const group = document.createElement("div");
+                group.className = "param-group";
+
+                const label = document.createElement("label");
+                label.textContent = param.label;
+                label.setAttribute("for", `param-${param.key}`);
+                group.appendChild(label);
+
+                let input;
+                if (param.type === "select") {
+                    input = document.createElement("select");
+                    const defaultOpt = document.createElement("option");
+                    defaultOpt.value = "";
+                    defaultOpt.textContent = "Cualquiera";
+                    input.appendChild(defaultOpt);
+                    (param.options || []).forEach(opt => {
+                        const option = document.createElement("option");
+                        option.value = opt;
+                        option.textContent = opt;
+                        input.appendChild(option);
+                    });
+                } else {
+                    input = document.createElement("input");
+                    input.type = "text";
+                    input.placeholder = param.placeholder || "";
+                }
+                input.id = `param-${param.key}`;
+                input.dataset.paramKey = param.key;
+                input.className = "param-input";
+                group.appendChild(input);
+
+                paramsContainer.appendChild(group);
+            });
+        } else {
+            paramsWrapper.classList.add("hidden");
+        }
+
+        const metaList = document.getElementById("preview-meta-questions");
+        metaList.innerHTML = "";
+        (data.metadata_questions || []).forEach(q => {
+            const li = document.createElement("li");
+            li.textContent = q;
+            metaList.appendChild(li);
+        });
+
+        const dataList = document.getElementById("preview-data-questions");
+        dataList.innerHTML = "";
+        (data.data_questions || []).forEach(q => {
+            const li = document.createElement("li");
+            li.textContent = q;
+            dataList.appendChild(li);
+        });
+
+        document.getElementById("btn-run-scenario").dataset.scenario = scenarioKey;
+    } catch (err) {
+        document.getElementById("preview-title").textContent = "Error";
+        document.getElementById("preview-description").textContent = err.message;
+    }
+}
+
+
+function collectScenarioParams() {
+    const params = {};
+    document.querySelectorAll("#preview-params .param-input").forEach(input => {
+        const key = input.dataset.paramKey;
+        const value = input.value.trim();
+        if (value) params[key] = value;
+    });
+    return Object.keys(params).length > 0 ? params : null;
+}
+
+
+// ═══════════════════════════════════════════════════════════════
+// Main decision pipeline
+// ═══════════════════════════════════════════════════════════════
+
+async function runDecision(scenario, customQuestion = null, customMetaQs = null, customDataQs = null, params = null) {
+    showResults();
+    document.getElementById("loading").classList.remove("hidden");
+    document.getElementById("results-content").classList.add("hidden");
+
+    // Animate phases
+    const p1 = document.getElementById("phase1-status");
+    const p2 = document.getElementById("phase2-status");
+    const p3 = document.getElementById("phase3-status");
+    [p1, p2, p3].forEach(p => { p.className = "phase-indicator"; });
+    p1.classList.add("active");
+
+    try {
+        const body = {
+            scenario: scenario,
+        };
+        if (customQuestion) body.custom_question = customQuestion;
+        if (customMetaQs) body.custom_metadata_questions = customMetaQs;
+        if (customDataQs) body.custom_data_questions = customDataQs;
+        if (params) body.parameters = params;
+        const useViews = getSelectedView();
+        if (useViews) body.use_views = useViews;
+
+        // Simulate phase progression (the backend does all 3 phases in one call)
+        setTimeout(() => { p1.className = "phase-indicator done"; p2.classList.add("active"); }, 3000);
+        setTimeout(() => { p2.className = "phase-indicator done"; p3.classList.add("active"); }, 8000);
+
+        const res = await fetch("/api/decide", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(body),
+        });
+
+        const data = await res.json();
+
+        // Mark all done
+        [p1, p2, p3].forEach(p => { p.className = "phase-indicator done"; });
+
+        // Short delay then show results
+        setTimeout(() => {
+            document.getElementById("loading").classList.add("hidden");
+            renderResults(data);
+            document.getElementById("results-content").classList.remove("hidden");
+        }, 500);
+
+    } catch (err) {
+        document.getElementById("loading").classList.add("hidden");
+        document.getElementById("results-content").classList.remove("hidden");
+        document.getElementById("decision-text").innerHTML = `<p>Error: ${err.message}</p>`;
+        document.getElementById("phase1-results").innerHTML = "";
+        document.getElementById("phase2-results").innerHTML = "";
+    }
+}
+
+
+// ═══════════════════════════════════════════════════════════════
+// Render results
+// ═══════════════════════════════════════════════════════════════
+
+function renderResults(data) {
+    // Decision — render as markdown
+    const decisionEl = document.getElementById("decision-text");
+    decisionEl.innerHTML = renderMarkdown(data.decision || "No se pudo generar una recomendación.");
+
+    // Phase 1
+    const p1Container = document.getElementById("phase1-results");
+    p1Container.innerHTML = "";
+    (data.phase1_metadata || []).forEach(item => {
+        p1Container.appendChild(createQABlock(item));
+    });
+
+    // Phase 2
+    const p2Container = document.getElementById("phase2-results");
+    p2Container.innerHTML = "";
+    (data.phase2_data || []).forEach(item => {
+        p2Container.appendChild(createQABlock(item));
+    });
+
+    // Errors
+    const errSection = document.getElementById("errors-section");
+    const errList = document.getElementById("errors-list");
+    if (data.errors && data.errors.length > 0) {
+        errSection.classList.remove("hidden");
+        errList.innerHTML = data.errors.map(e => `<p>⚠️ ${e}</p>`).join("");
+    } else {
+        errSection.classList.add("hidden");
+    }
+}
+
+function createQABlock(item) {
+    const block = document.createElement("div");
+    block.className = "qa-block";
+
+    const q = document.createElement("div");
+    q.className = "qa-question";
+    q.textContent = `❓ ${item.question}`;
+    block.appendChild(q);
+
+    const a = document.createElement("div");
+    if (item.error) {
+        a.className = "qa-answer qa-error";
+        a.textContent = `Error: ${item.error}`;
+    } else {
+        a.className = "qa-answer markdown-body";
+        a.innerHTML = renderMarkdown(item.answer || "Sin respuesta");
+    }
+    block.appendChild(a);
+
+    return block;
+}
+
+
+// ═══════════════════════════════════════════════════════════════
+// Free exploration
+// ═══════════════════════════════════════════════════════════════
+
+async function exploreFree() {
+    const input = document.getElementById("explore-input");
+    const resultBox = document.getElementById("explore-result");
+    const question = input.value.trim();
+
+    if (!question) return;
+
+    resultBox.classList.remove("hidden");
+    resultBox.innerHTML = "<p>⏳ Consultando...</p>";
+
+    try {
+        const body = { question };
+        const useViews = getSelectedView();
+        if (useViews) body.use_views = useViews;
+        const res = await fetch("/api/ask", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(body),
+        });
+        const data = await res.json();
+        const answer = data.answer || data.error || JSON.stringify(data, null, 2);
+        resultBox.innerHTML = renderMarkdown(answer);
+    } catch (err) {
+        resultBox.innerHTML = `<p>Error: ${err.message}</p>`;
+    }
+}
+

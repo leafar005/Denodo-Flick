@@ -1,0 +1,771 @@
+/* ════════════════════════════════════════════════════════════
+   DecisionLens — Estilos
+   HackUDC 2026 - Reto Denodo
+   ════════════════════════════════════════════════════════════ */
+
+:root {
+    --primary: #2563eb;
+    --primary-dark: #1d4ed8;
+    --primary-light: #dbeafe;
+    --success: #16a34a;
+    --success-light: #dcfce7;
+    --warning: #f59e0b;
+    --danger: #dc2626;
+    --danger-light: #fee2e2;
+    --bg: #f8fafc;
+    --surface: #ffffff;
+    --text: #1e293b;
+    --text-muted: #64748b;
+    --border: #e2e8f0;
+    --radius: 12px;
+    --shadow: 0 1px 3px rgba(0,0,0,0.1), 0 1px 2px rgba(0,0,0,0.06);
+    --shadow-lg: 0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05);
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+    min-height: 100vh;
+}
+
+/* ── Header ───────────────────────────────────────────────── */
+
+header {
+    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+    color: white;
+    padding: 2rem;
+    text-align: center;
+}
+
+.header-content h1 {
+    font-size: 2.2rem;
+    font-weight: 700;
+    margin-bottom: 0.3rem;
+}
+
+.subtitle {
+    opacity: 0.85;
+    font-size: 1.05rem;
+}
+
+.health-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 14px;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    margin-top: 0.8rem;
+    background: rgba(255,255,255,0.15);
+}
+
+.health-badge .dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--warning);
+}
+
+.health-badge.connected .dot { background: #4ade80; }
+.health-badge.disconnected .dot { background: #f87171; }
+
+/* ── View Selector ────────────────────────────────────────── */
+
+.view-selector {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-top: 0.75rem;
+    background: rgba(255,255,255,0.15);
+    padding: 0.4rem 0.8rem;
+    border-radius: 8px;
+    font-size: 0.85rem;
+}
+
+.view-selector label {
+    color: rgba(255,255,255,0.9);
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+.view-selector select {
+    background: rgba(255,255,255,0.2);
+    color: white;
+    border: 1px solid rgba(255,255,255,0.3);
+    border-radius: 6px;
+    padding: 0.3rem 0.5rem;
+    font-size: 0.85rem;
+    cursor: pointer;
+}
+
+.view-selector select option {
+    background: var(--primary-dark);
+    color: white;
+}
+
+/* ── Main ─────────────────────────────────────────────────── */
+
+main {
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 2rem 1.5rem;
+}
+
+section {
+    margin-bottom: 2.5rem;
+}
+
+h2 {
+    font-size: 1.4rem;
+    margin-bottom: 1rem;
+    color: var(--text);
+}
+
+h3 {
+    font-size: 1.15rem;
+    margin-bottom: 0.75rem;
+}
+
+.section-desc {
+    color: var(--text-muted);
+    margin-bottom: 1rem;
+    font-size: 0.95rem;
+}
+
+/* ── Scenario Cards ───────────────────────────────────────── */
+
+.scenario-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 1rem;
+}
+
+.scenario-card {
+    background: var(--surface);
+    border: 2px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1.5rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-align: center;
+}
+
+.scenario-card:hover {
+    border-color: var(--primary);
+    box-shadow: var(--shadow-lg);
+    transform: translateY(-2px);
+}
+
+.scenario-card.selected {
+    border-color: var(--primary);
+    background: var(--primary-light);
+}
+
+.card-icon {
+    font-size: 2.5rem;
+    margin-bottom: 0.75rem;
+}
+
+.scenario-card h3 {
+    font-size: 1rem;
+    margin-bottom: 0.5rem;
+}
+
+.scenario-card p {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+}
+
+/* ── Custom Decision Link (secondary) ─────────────────────── */
+
+.custom-decision-link {
+    margin-top: 1.25rem;
+    text-align: center;
+}
+
+.btn-custom-secondary {
+    background: none;
+    border: 1px dashed var(--border);
+    border-radius: 8px;
+    padding: 0.6rem 1.2rem;
+    color: var(--text-muted);
+    font-size: 0.88rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-family: inherit;
+}
+
+.btn-custom-secondary:hover {
+    border-color: var(--primary);
+    color: var(--primary);
+    background: var(--primary-light);
+}
+
+.btn-custom-secondary strong {
+    font-weight: 600;
+}
+
+/* ── Parameter Form ───────────────────────────────────────── */
+
+.params-wrapper {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1.25rem 1.5rem;
+    margin-bottom: 1.25rem;
+}
+
+.params-wrapper h3 {
+    font-size: 1rem;
+    margin-bottom: 1rem;
+    color: var(--text);
+}
+
+.params-hint {
+    font-weight: 400;
+    font-size: 0.82rem;
+    color: var(--text-muted);
+}
+
+.param-form {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 1rem;
+}
+
+.param-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+}
+
+.param-group label {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text);
+}
+
+.param-input {
+    padding: 0.55rem 0.75rem;
+    border: 2px solid var(--border);
+    border-radius: 8px;
+    font-size: 0.9rem;
+    font-family: inherit;
+    background: var(--surface);
+    transition: border-color 0.2s;
+}
+
+.param-input:focus {
+    outline: none;
+    border-color: var(--primary);
+}
+
+/* ── Forms ────────────────────────────────────────────────── */
+
+.form-group {
+    margin-bottom: 1.2rem;
+}
+
+.form-group label {
+    display: block;
+    font-weight: 600;
+    margin-bottom: 0.4rem;
+    font-size: 0.9rem;
+}
+
+textarea, input[type="text"], select {
+    width: 100%;
+    padding: 0.7rem 1rem;
+    border: 2px solid var(--border);
+    border-radius: 8px;
+    font-size: 0.95rem;
+    font-family: inherit;
+    transition: border-color 0.2s;
+    background: var(--surface);
+}
+
+textarea:focus, input[type="text"]:focus, select:focus {
+    outline: none;
+    border-color: var(--primary);
+}
+
+.btn-primary, .btn-secondary {
+    padding: 0.65rem 1.5rem;
+    border: none;
+    border-radius: 8px;
+    font-size: 0.95rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-primary {
+    background: var(--primary);
+    color: white;
+}
+
+.btn-primary:hover { background: var(--primary-dark); }
+.btn-primary:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.btn-secondary {
+    background: var(--surface);
+    color: var(--text);
+    border: 2px solid var(--border);
+    margin-left: 0.5rem;
+}
+
+.btn-secondary:hover { border-color: var(--text-muted); }
+
+/* ── Preview Section ───────────────────────────────────────── */
+
+.preview-questions {
+    margin: 1.5rem 0;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.preview-questions details {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1rem 1.5rem;
+}
+
+.preview-questions summary {
+    font-weight: 600;
+    cursor: pointer;
+    color: var(--primary);
+    margin-bottom: 0.5rem;
+}
+
+.preview-questions ul {
+    margin: 0.5rem 0 0 1.2rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.preview-questions li {
+    color: var(--text);
+    line-height: 1.5;
+}
+
+.preview-actions {
+    display: flex;
+    gap: 0.75rem;
+    margin-top: 1rem;
+}
+
+.preview-actions .btn-primary {
+    font-size: 1.05rem;
+    padding: 0.75rem 2rem;
+}
+
+/* ── Sync Section ──────────────────────────────────────────── */
+
+.sync-form {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1.5rem;
+}
+
+.sync-row {
+    display: flex;
+    gap: 0.5rem;
+    align-items: stretch;
+    margin-bottom: 0.75rem;
+}
+
+.sync-row input {
+    flex: 1;
+}
+
+.sync-row button {
+    white-space: nowrap;
+}
+
+#sync-status {
+    padding: 0.75rem 1rem;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    margin-bottom: 0.75rem;
+}
+
+#sync-status.success {
+    background: var(--success-light);
+    color: var(--success);
+    border: 1px solid #86efac;
+}
+
+#sync-status.error {
+    background: var(--danger-light);
+    color: var(--danger);
+    border: 1px solid #fca5a5;
+}
+
+#sync-status.loading {
+    background: var(--primary-light);
+    color: var(--primary);
+    border: 1px solid #93c5fd;
+}
+
+.hint {
+    font-size: 0.82rem;
+    color: var(--text-muted);
+}
+
+.hint a {
+    color: var(--primary);
+    text-decoration: none;
+}
+
+.hint a:hover {
+    text-decoration: underline;
+}
+
+/* ── Explore ──────────────────────────────────────────────── */
+
+.explore-row {
+    display: flex;
+    gap: 0.5rem;
+    align-items: stretch;
+}
+
+.explore-row select {
+    width: auto;
+    min-width: 280px;
+}
+
+.explore-row input {
+    flex: 1;
+}
+
+.explore-row button {
+    white-space: nowrap;
+}
+
+.result-box {
+    margin-top: 1rem;
+    padding: 1rem 1.2rem;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    white-space: pre-wrap;
+    font-size: 0.9rem;
+    line-height: 1.7;
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+/* ── Loading ──────────────────────────────────────────────── */
+
+#loading {
+    text-align: center;
+    padding: 3rem 0;
+}
+
+.spinner {
+    width: 48px;
+    height: 48px;
+    border: 4px solid var(--border);
+    border-top-color: var(--primary);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    margin: 0 auto 1rem;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.loading-text {
+    font-size: 1.1rem;
+    font-weight: 600;
+    margin-bottom: 1.5rem;
+}
+
+.loading-phases {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.6rem;
+}
+
+.phase-indicator {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.85rem;
+    color: var(--text-muted);
+}
+
+.phase-indicator.active {
+    color: var(--primary);
+    font-weight: 600;
+}
+
+.phase-indicator.done {
+    color: var(--success);
+}
+
+.phase-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--border);
+}
+
+.phase-indicator.active .phase-dot {
+    background: var(--primary);
+    animation: pulse 1s ease-in-out infinite;
+}
+
+.phase-indicator.done .phase-dot {
+    background: var(--success);
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+}
+
+/* ── Decision Card ────────────────────────────────────────── */
+
+.decision-card {
+    background: linear-gradient(135deg, #1e3a5f 0%, #1e293b 100%);
+    color: white;
+    padding: 2rem;
+    border-radius: var(--radius);
+    margin-bottom: 2rem;
+    box-shadow: var(--shadow-lg);
+}
+
+.decision-card h2 {
+    color: white;
+    margin-bottom: 1rem;
+    font-size: 1.3rem;
+}
+
+.decision-text {
+    font-size: 0.95rem;
+    line-height: 1.8;
+    white-space: pre-wrap;
+}
+
+/* ── Phase Results ────────────────────────────────────────── */
+
+.phase-results {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+}
+
+.badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    background: var(--primary-light);
+    color: var(--primary);
+    vertical-align: middle;
+}
+
+.qa-block {
+    margin-bottom: 1.2rem;
+    padding-bottom: 1.2rem;
+    border-bottom: 1px solid var(--border);
+}
+
+.qa-block:last-child {
+    border-bottom: none;
+    margin-bottom: 0;
+    padding-bottom: 0;
+}
+
+.qa-question {
+    font-weight: 600;
+    font-size: 0.9rem;
+    color: var(--primary-dark);
+    margin-bottom: 0.4rem;
+}
+
+.qa-answer {
+    font-size: 0.88rem;
+    white-space: pre-wrap;
+    line-height: 1.7;
+    color: var(--text);
+}
+
+.qa-error {
+    color: var(--danger);
+    font-style: italic;
+}
+
+/* ── Errors ───────────────────────────────────────────────── */
+
+.errors-section {
+    background: var(--danger-light);
+    border: 1px solid #fca5a5;
+    border-radius: var(--radius);
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+}
+
+/* ── Footer ───────────────────────────────────────────────── */
+
+footer {
+    text-align: center;
+    padding: 2rem;
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    border-top: 1px solid var(--border);
+}
+
+/* ── Utilities ────────────────────────────────────────────── */
+
+.hidden { display: none !important; }
+
+/* ── Markdown body (tables, lists, etc.) ──────────────────── */
+
+.markdown-body table,
+.decision-text table,
+.result-box table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 0.8rem 0;
+    font-size: 0.85rem;
+}
+
+.markdown-body th, .markdown-body td,
+.decision-text th, .decision-text td,
+.result-box th, .result-box td {
+    padding: 0.5rem 0.75rem;
+    border: 1px solid var(--border);
+    text-align: left;
+}
+
+.markdown-body th,
+.decision-text th,
+.result-box th {
+    background: var(--bg);
+    font-weight: 600;
+    font-size: 0.82rem;
+}
+
+.markdown-body tr:nth-child(even),
+.decision-text tr:nth-child(even),
+.result-box tr:nth-child(even) {
+    background: rgba(0,0,0,0.02);
+}
+
+.decision-text table {
+    color: rgba(255,255,255,0.9);
+}
+
+.decision-text th {
+    background: rgba(255,255,255,0.1);
+    color: white;
+}
+
+.decision-text td {
+    border-color: rgba(255,255,255,0.15);
+}
+
+.decision-text th {
+    border-color: rgba(255,255,255,0.15);
+}
+
+.decision-text tr:nth-child(even) {
+    background: rgba(255,255,255,0.05);
+}
+
+.markdown-body ul, .markdown-body ol,
+.decision-text ul, .decision-text ol,
+.result-box ul, .result-box ol {
+    margin: 0.5rem 0;
+    padding-left: 1.5rem;
+}
+
+.markdown-body li, .decision-text li, .result-box li {
+    margin-bottom: 0.3rem;
+}
+
+.markdown-body strong, .decision-text strong, .result-box strong {
+    font-weight: 700;
+}
+
+.markdown-body p, .decision-text p, .result-box p {
+    margin-bottom: 0.5rem;
+}
+
+.markdown-body h1, .markdown-body h2, .markdown-body h3,
+.decision-text h1, .decision-text h2, .decision-text h3,
+.result-box h1, .result-box h2, .result-box h3 {
+    margin-top: 1rem;
+    margin-bottom: 0.5rem;
+}
+
+/* ── Collapsible phase details ────────────────────────────── */
+
+.phase-details {
+    margin-bottom: 1rem;
+}
+
+.phase-details summary {
+    cursor: pointer;
+    padding: 0.75rem 1rem;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    font-weight: 600;
+    font-size: 0.95rem;
+    color: var(--text);
+    transition: background 0.2s;
+}
+
+.phase-details summary:hover {
+    background: var(--bg);
+}
+
+.phase-details[open] summary {
+    border-bottom-left-radius: 0;
+    border-bottom-right-radius: 0;
+}
+
+.phase-details .phase-results {
+    border: 1px solid var(--border);
+    border-top: none;
+    border-radius: 0 0 var(--radius) var(--radius);
+    padding: 1.5rem;
+    margin-bottom: 0;
+}
+
+/* ── Responsive ───────────────────────────────────────────── */
+
+@media (max-width: 640px) {
+    .scenario-grid {
+        grid-template-columns: 1fr;
+    }
+    .explore-row {
+        flex-direction: column;
+    }
+    .explore-row select {
+        min-width: unset;
+    }
+    header { padding: 1.5rem 1rem; }
+    .header-content h1 { font-size: 1.6rem; }
+}

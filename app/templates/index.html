@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DecisionLens — Denodo Decision Tool</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+</head>
+<body>
+    <header>
+        <div class="header-content">
+            <h1>🎯 DecisionLens</h1>
+            <p class="subtitle">Herramienta de toma de decisiones basada en datos — Denodo AI SDK</p>
+            <div id="health-status" class="health-badge disconnected">
+                <span class="dot"></span>
+                <span class="text">Comprobando conexión...</span>
+            </div>
+            <div class="view-selector">
+                <label for="view-select">🗂 Vista de datos:</label>
+                <select id="view-select">
+                    <option value="">Automática (todas)</option>
+                    <option value="admin.p_movies">admin.p_movies (pequeña, más rápida)</option>
+                    <option value="admin.movies">admin.movies (completa)</option>
+                </select>
+            </div>
+        </div>
+    </header>
+
+    <main>
+        <!-- Panel de selección de escenario -->
+        <section id="scenario-section">
+            <h2>Selecciona un escenario de decisión</h2>
+            <div class="scenario-grid">
+                <div class="scenario-card" data-scenario="production">
+                    <div class="card-icon">🎬</div>
+                    <h3>¿Qué película producir?</h3>
+                    <p>Analiza géneros, presupuestos, ingresos y ratings para recomendar qué tipo de película producir.</p>
+                </div>
+                <div class="scenario-card" data-scenario="investment">
+                    <div class="card-icon">💰</div>
+                    <h3>¿En qué películas invertir?</h3>
+                    <p>Determina las mejores oportunidades de inversión basándote en ROI histórico y tendencias.</p>
+                </div>
+                <div class="scenario-card" data-scenario="distribution">
+                    <div class="card-icon">🌍</div>
+                    <h3>¿En qué mercado distribuir?</h3>
+                    <p>Analiza rendimiento por idioma y mercado para decidir dónde distribuir contenido.</p>
+                </div>
+            </div>
+            <div class="custom-decision-link">
+                <button id="btn-custom-link" class="btn-custom-secondary">
+                    🔍 ¿Necesitas algo diferente? Define una <strong>decisión personalizada</strong>
+                </button>
+            </div>
+        </section>
+
+        <!-- Preview del escenario seleccionado -->
+        <section id="preview-section" class="hidden">
+            <h2 id="preview-title"></h2>
+            <p id="preview-description" class="section-desc"></p>
+
+            <!-- Parámetros del escenario -->
+            <div id="preview-params-wrapper" class="params-wrapper hidden">
+                <h3>⚙️ Parámetros del análisis <span class="params-hint">(opcional — afina los resultados)</span></h3>
+                <div id="preview-params" class="param-form"></div>
+            </div>
+
+            <div class="preview-questions">
+                <details open>
+                    <summary>📋 Preguntas de metadatos (Fase 1)</summary>
+                    <ul id="preview-meta-questions"></ul>
+                </details>
+                <details open>
+                    <summary>📊 Preguntas de datos (Fase 2)</summary>
+                    <ul id="preview-data-questions"></ul>
+                </details>
+            </div>
+
+            <div class="preview-actions">
+                <button id="btn-run-scenario" class="btn-primary">▶ Ejecutar análisis</button>
+                <button id="btn-preview-back" class="btn-secondary">← Volver</button>
+            </div>
+        </section>
+
+        <!-- Formulario personalizado (solo visible para "custom") -->
+        <section id="custom-section" class="hidden">
+            <h2>Define tu decisión</h2>
+            <div class="custom-form">
+                <div class="form-group">
+                    <label for="custom-question">¿Qué decisión necesitas tomar?</label>
+                    <textarea id="custom-question" rows="3" placeholder="Ej: ¿Qué género de película debería producir una productora indie con bajo presupuesto para maximizar beneficios?"></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="custom-metadata">Preguntas de exploración (Fase 1 - opcional, una por línea)</label>
+                    <textarea id="custom-metadata" rows="3" placeholder="Ej: ¿Qué tablas contienen información sobre presupuesto y géneros de películas?"></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="custom-data">Preguntas de datos (Fase 2 - opcional, una por línea)</label>
+                    <textarea id="custom-data" rows="3" placeholder="Ej: ¿Cuáles son los 5 géneros con mejor ratio revenue/budget?"></textarea>
+                </div>
+                <button id="btn-custom-run" class="btn-primary">Ejecutar análisis</button>
+                <button id="btn-back" class="btn-secondary">← Volver</button>
+            </div>
+        </section>
+
+        <!-- Sección de pregunta libre -->
+        <section id="explore-section">
+            <h2>💬 Pregunta lo que quieras</h2>
+            <p class="section-desc">Haz una pregunta sobre los datos y obtén una respuesta fundamentada</p>
+            <div class="explore-form">
+                <div class="explore-row">
+                    <input type="text" id="explore-input" placeholder="Ej: ¿Cuáles son los géneros de película más rentables?">
+                    <button id="btn-explore" class="btn-primary">Preguntar</button>
+                </div>
+                <div id="explore-result" class="result-box hidden"></div>
+            </div>
+        </section>
+
+        <!-- Resultados del pipeline -->
+        <section id="results-section" class="hidden">
+            <div id="loading" class="hidden">
+                <div class="spinner"></div>
+                <p class="loading-text">Analizando datos con Denodo AI SDK...</p>
+                <div class="loading-phases">
+                    <div id="phase1-status" class="phase-indicator">
+                        <span class="phase-dot"></span>
+                        Fase 1: Explorando metadatos...
+                    </div>
+                    <div id="phase2-status" class="phase-indicator">
+                        <span class="phase-dot"></span>
+                        Fase 2: Consultando datos...
+                    </div>
+                    <div id="phase3-status" class="phase-indicator">
+                        <span class="phase-dot"></span>
+                        Fase 3: Generando recomendación...
+                    </div>
+                </div>
+            </div>
+
+            <div id="results-content" class="hidden">
+                <!-- Decisión final -->
+                <div id="decision-card" class="decision-card">
+                    <h2>📌 Recomendación Final</h2>
+                    <div id="decision-text" class="decision-text"></div>
+                </div>
+
+                <!-- Detalles del análisis (colapsable) -->
+                <details class="phase-details">
+                    <summary>📋 Ver detalle del análisis de metadatos</summary>
+                    <div class="phase-results">
+                        <div id="phase1-results"></div>
+                    </div>
+                </details>
+
+                <details class="phase-details">
+                    <summary>📊 Ver detalle de los datos extraídos</summary>
+                    <div class="phase-results">
+                        <div id="phase2-results"></div>
+                    </div>
+                </details>
+
+                <!-- Errores -->
+                <div id="errors-section" class="errors-section hidden">
+                    <h3>⚠️ Errores</h3>
+                    <div id="errors-list"></div>
+                </div>
+
+                <button id="btn-new" class="btn-secondary">← Nueva decisión</button>
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        <p>HackUDC 2026 — Reto Denodo · DecisionLens · Powered by Denodo AI SDK</p>
+    </footer>
+
+    <script src="/static/app.js"></script>
+</body>
+</html>
