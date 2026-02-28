@@ -1,7 +1,10 @@
-/* ════════════════════════════════════════════════════════════
-   Denodo Flick — Frontend Logic
-   HackUDC 2026 - Reto Denodo
-   ════════════════════════════════════════════════════════════ */
+/*
+ * Copyright (c) 2026 Rafael Casado, Joel Candal, Diego Rodríguez, Santiago Neira
+ * Licensed under the MIT License. See LICENSE file for details.
+ *
+ * Denodo Flick — Frontend Logic
+ * HackUDC 2026 - Reto Denodo
+ */
 
 document.addEventListener("DOMContentLoaded", () => {
     // ── Theme toggle ────────────────────────────────────────

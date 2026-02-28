@@ -1,3 +1,6 @@
+# Copyright (c) 2026 Rafael Casado, Joel Candal, Diego Rodríguez, Santiago Neira
+# Licensed under the MIT License. See LICENSE file for details.
+
 """
 API principal - Herramienta de Toma de Decisiones con Denodo AI SDK
 HackUDC 2026 - Reto Denodo
