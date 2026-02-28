@@ -55,7 +55,7 @@ SCENARIOS = {
         ],
         "parameters": [
             {"key": "genre", "label": "Género preferido", "type": "select", "options": GENRE_OPTIONS},
-            {"key": "budget_range", "label": "Rango de presupuesto", "type": "select", "options": ["Bajo (< 5M $)", "Medio (5M - 50M $)", "Alto (> 50M $)"]},
+            {"key": "budget_range", "label": "Presupuesto máximo", "type": "range", "min": 0, "max": 300, "step": 5, "default": 150, "unit": "M $"},
             {"key": "min_year", "label": "Año mínimo de referencia", "type": "text", "placeholder": "Ej: 2015"},
             {"key": "min_rating", "label": "Rating mínimo (vote_average)", "type": "text", "placeholder": "Ej: 6.0"},
         ],
@@ -75,7 +75,7 @@ SCENARIOS = {
         ],
         "parameters": [
             {"key": "genre", "label": "Género de interés", "type": "select", "options": GENRE_OPTIONS},
-            {"key": "budget_range", "label": "Rango de inversión", "type": "select", "options": ["Bajo (< 5M $)", "Medio (5M - 50M $)", "Alto (> 50M $)"]},
+            {"key": "budget_range", "label": "Presupuesto máximo", "type": "range", "min": 0, "max": 300, "step": 5, "default": 150, "unit": "M $"},
             {"key": "min_year", "label": "Año mínimo de referencia", "type": "text", "placeholder": "Ej: 2015"},
             {"key": "min_popularity", "label": "Popularidad mínima", "type": "text", "placeholder": "Ej: 10"},
         ],
@@ -96,7 +96,7 @@ SCENARIOS = {
         "parameters": [
             {"key": "genre", "label": "Género de la película", "type": "select", "options": GENRE_OPTIONS},
             {"key": "language", "label": "Idioma de la película", "type": "select", "options": [l["label"] for l in LANGUAGE_OPTIONS]},
-            {"key": "budget_range", "label": "Rango de presupuesto", "type": "select", "options": ["Bajo (< 5M $)", "Medio (5M - 50M $)", "Alto (> 50M $)"]},
+            {"key": "budget_range", "label": "Presupuesto máximo", "type": "range", "min": 0, "max": 300, "step": 5, "default": 150, "unit": "M $"},
             {"key": "min_year", "label": "Año mínimo de referencia", "type": "text", "placeholder": "Ej: 2015"},
         ],
     },
@@ -110,6 +110,22 @@ SCENARIOS = {
 }
 
 
+def _build_metadata_prefix(metadata_context: str) -> str:
+    """
+    Construye un prefijo con el contexto descubierto en la Fase 1 para
+    inyectarlo en cada pregunta de la Fase 2, de modo que las consultas
+    de datos se basen en la estructura real del dataset.
+    """
+    if not metadata_context:
+        return ""
+    return (
+        "CONTEXTO IMPORTANTE — Estructura de datos descubierta en la fase de análisis:\n"
+        f"{metadata_context}\n\n"
+        "Usa EXCLUSIVAMENTE las tablas y columnas reales descubiertas arriba para "
+        "formular la consulta VQL. Pregunta concreta: "
+    )
+
+
 def build_param_context(params: dict | None) -> str:
     """Construye un contexto textual a partir de los parámetros del usuario."""
     if not params:
@@ -119,7 +135,7 @@ def build_param_context(params: dict | None) -> str:
     if params.get("genre"):
         filters.append(f"género '{params['genre']}'")
     if params.get("budget_range"):
-        filters.append(f"rango de presupuesto {params['budget_range']}")
+        filters.append(f"con presupuesto máximo de {params['budget_range']}")
     if params.get("min_year"):
         filters.append(f"considerando solo películas desde el año {params['min_year']}")
     if params.get("min_rating"):
@@ -254,7 +270,10 @@ async def run_decision_pipeline_stream(
     )
 
     # ── FASE 2: Ejecución de consultas de datos ───────────────────────
+    # Inyectamos el contexto descubierto en la Fase 1 para que cada
+    # consulta de datos se base en la estructura real encontrada.
     param_context = build_param_context(params)
+    metadata_prefix = _build_metadata_prefix(metadata_context)
 
     for i, dq in enumerate(data_questions, 1):
         current_step += 1
@@ -269,7 +288,7 @@ async def run_decision_pipeline_stream(
             "phase_total": n_data,
             "message": f"Fase 2: Consultando datos ({i}/{n_data})...",
         }
-        dq_final = dq + param_context if param_context else dq
+        dq_final = metadata_prefix + dq + (param_context if param_context else "")
         try:
             response = await answer_data_question(dq_final, use_views=use_views)
             results["phase2_data"].append({

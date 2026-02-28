@@ -151,6 +151,26 @@ async def decide_stream(req: DecisionRequest):
     )
 
 
+@app.get("/api/discover-views")
+async def discover_views():
+    """
+    Descubre dinámicamente las vistas/tablas disponibles en el Data Marketplace.
+    Usa answerMetadataQuestion para explorar el entorno sin hardcodeo.
+    """
+    try:
+        response = await answer_metadata_question(
+            "Lista TODAS las tablas y vistas disponibles en la base de datos. "
+            "Para cada una indica su nombre completo (database.tabla) y una breve descripción de qué contiene."
+        )
+        return {
+            "status": "ok",
+            "answer": response.get("answer", response),
+            "raw": response,
+        }
+    except Exception as e:
+        return {"status": "error", "error": str(e)}
+
+
 @app.post("/api/ask")
 async def ask_free(req: FreeQuestionRequest):
     """

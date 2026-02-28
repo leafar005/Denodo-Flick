@@ -12,6 +12,9 @@ document.addEventListener("DOMContentLoaded", () => {
     // Auto-sync metadatos con "admin" al cargar
     autoSyncMetadata();
 
+    // Discover views button
+    document.getElementById("btn-discover-views")?.addEventListener("click", discoverViews);
+
     // ── Escenarios ──────────────────────────────────────────
     document.querySelectorAll(".scenario-card").forEach(card => {
         card.addEventListener("click", () => {
@@ -63,8 +66,62 @@ document.addEventListener("DOMContentLoaded", () => {
 // ═══════════════════════════════════════════════════════════════
 
 function getSelectedView() {
-    const sel = document.getElementById("view-select");
-    return sel ? sel.value || null : null;
+    const input = document.getElementById("view-select");
+    return input ? input.value.trim() || null : null;
+}
+
+
+// ═══════════════════════════════════════════════════════════════
+// Dynamic view discovery
+// ═══════════════════════════════════════════════════════════════
+
+async function discoverViews() {
+    const btn = document.getElementById("btn-discover-views");
+    const status = document.getElementById("discover-status");
+    const datalist = document.getElementById("view-options");
+
+    btn.classList.add("loading");
+    btn.textContent = "⌛";
+    status.textContent = "Descubriendo...";
+
+    try {
+        const res = await fetch("/api/discover-views");
+        const data = await res.json();
+
+        if (data.status === "ok" && data.answer) {
+            // Parse view names from the answer text (pattern: database.view_name)
+            const viewPattern = /\b(\w+\.\w+)\b/g;
+            const matches = data.answer.match(viewPattern) || [];
+            // Dedupe and filter reasonable view names
+            const views = [...new Set(matches)].filter(v => {
+                const parts = v.split(".");
+                return parts.length === 2 && parts[0].length > 1 && parts[1].length > 1
+                    && !v.match(/^(e\.g|i\.e|vs\.|etc\.)$/i);
+            });
+
+            datalist.innerHTML = "";
+            views.forEach(view => {
+                const opt = document.createElement("option");
+                opt.value = view;
+                datalist.appendChild(opt);
+            });
+
+            status.textContent = views.length > 0 ? `${views.length} vistas encontradas` : "Sin vistas detectadas";
+
+            // Auto-fill first view if input is empty
+            const input = document.getElementById("view-select");
+            if (!input.value && views.length > 0) {
+                input.value = views[0];
+            }
+        } else {
+            status.textContent = data.error ? "Error al descubrir" : "Sin resultados";
+        }
+    } catch {
+        status.textContent = "Error de conexión";
+    } finally {
+        btn.classList.remove("loading");
+        btn.textContent = "⚡";
+    }
 }
 
 
@@ -202,7 +259,35 @@ async function showScenarioPreview(scenarioKey) {
                 group.appendChild(label);
 
                 let input;
-                if (param.type === "select") {
+                if (param.type === "range") {
+                    const wrapper = document.createElement("div");
+                    wrapper.className = "range-wrapper";
+
+                    input = document.createElement("input");
+                    input.type = "range";
+                    input.min = param.min ?? 0;
+                    input.max = param.max ?? 300;
+                    input.step = param.step ?? 5;
+                    input.value = param.default ?? Math.round((param.max ?? 300) / 2);
+
+                    const valueLabel = document.createElement("span");
+                    valueLabel.className = "range-value";
+                    const unit = param.unit || "";
+                    valueLabel.textContent = `${input.value} ${unit}`;
+
+                    input.addEventListener("input", () => {
+                        valueLabel.textContent = `${input.value} ${unit}`;
+                    });
+
+                    wrapper.appendChild(input);
+                    wrapper.appendChild(valueLabel);
+
+                    input.id = `param-${param.key}`;
+                    input.dataset.paramKey = param.key;
+                    input.dataset.unit = unit;
+                    input.className = "param-input";
+                    group.appendChild(wrapper);
+                } else if (param.type === "select") {
                     input = document.createElement("select");
                     const defaultOpt = document.createElement("option");
                     defaultOpt.value = "";
@@ -214,15 +299,19 @@ async function showScenarioPreview(scenarioKey) {
                         option.textContent = opt;
                         input.appendChild(option);
                     });
+                    input.id = `param-${param.key}`;
+                    input.dataset.paramKey = param.key;
+                    input.className = "param-input";
+                    group.appendChild(input);
                 } else {
                     input = document.createElement("input");
                     input.type = "text";
                     input.placeholder = param.placeholder || "";
+                    input.id = `param-${param.key}`;
+                    input.dataset.paramKey = param.key;
+                    input.className = "param-input";
+                    group.appendChild(input);
                 }
-                input.id = `param-${param.key}`;
-                input.dataset.paramKey = param.key;
-                input.className = "param-input";
-                group.appendChild(input);
 
                 paramsContainer.appendChild(group);
             });
@@ -258,7 +347,14 @@ function collectScenarioParams() {
     const params = {};
     document.querySelectorAll("#preview-params .param-input").forEach(input => {
         const key = input.dataset.paramKey;
-        const value = input.value.trim();
+        if (!key) return;
+        let value;
+        if (input.type === "range") {
+            const unit = input.dataset.unit || "";
+            value = `${input.value} ${unit}`.trim();
+        } else {
+            value = input.value.trim();
+        }
         if (value) params[key] = value;
     });
     return Object.keys(params).length > 0 ? params : null;

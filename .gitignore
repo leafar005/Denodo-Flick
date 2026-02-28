@@ -1,0 +1,30 @@
+# Python
+*.py[cod]
+*.pyo
+*.pyd
+
+# Entornos virtuales
+venv/
+env/
+.venv/
+
+# Variables de entorno
+.env
+
+# Pytest
+.pytest_cache/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docs
+apuntes denodo.txt
+Documentación técnica de Denodo para HackUDC.pdf
+Reto planteado por Denodo para HackUDC.pdf

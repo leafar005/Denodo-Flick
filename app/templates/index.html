@@ -32,11 +32,10 @@
             </div>
             <div class="view-selector">
                 <label for="view-select">Vista de datos:</label>
-                <select id="view-select">
-                    <option value="admin.movies">completa</option>
-                    <option value="admin.movies_medium">mediana</option>
-                    <option value="admin.movies_small">pequeña</option>
-                </select>
+                <input id="view-select" type="text" list="view-options" placeholder="Ej: admin.movies" autocomplete="off">
+                <datalist id="view-options"></datalist>
+                <button id="btn-discover-views" class="btn-discover" title="Descubrir vistas disponibles">⚡</button>
+                <span id="discover-status" class="discover-status"></span>
             </div>
         </div>
     </header>
