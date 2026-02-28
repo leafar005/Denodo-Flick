@@ -82,6 +82,38 @@ STATISTICS_QUERIES = {
     },
 }
 
+# ── Mapping de vistas fijas por escenario ────────────────────────────
+SCENARIO_VIEWS = {
+    "production": "admin.movies",
+    "series_production": "admin.series",
+    "actor_recommendation": "admin.actores",
+}
+
+
+def resolve_scenario_view(scenario_key: str, params: dict | None = None) -> str | None:
+    """
+    Determina la vista fija que debe usar un escenario.
+    Retorna None para 'custom' (el usuario elige con el selector).
+    """
+    if scenario_key in SCENARIO_VIEWS:
+        return SCENARIO_VIEWS[scenario_key]
+
+    if scenario_key in ("investment", "distribution"):
+        ct = (params or {}).get("content_type", "Películas")
+        return "admin.series" if ct == "Series" else "admin.movies"
+
+    if scenario_key == "statistics":
+        cat = (params or {}).get("stat_category", "Géneros")
+        if cat == "Series":
+            return "admin.series"
+        elif cat == "Actores":
+            return "admin.actores"
+        else:  # Géneros, Películas
+            return "admin.movies"
+
+    return None  # custom — el usuario elige
+
+
 # ──────────────────────────────────────────────────────────────────────
 # Escenarios de decisión predefinidos para el dataset TMDB
 # ──────────────────────────────────────────────────────────────────────
@@ -128,11 +160,15 @@ SCENARIOS = {
         ],
     },
     "investment": {
-        "title": "💰 ¿En qué tipo de películas invertir?",
-        "description": "Determina las mejores oportunidades de inversión cinematográfica basándote en tendencias de mercado, ROI histórico y demanda del público.",
+        "title": "💰 ¿En qué contenido invertir?",
+        "description": "Determina las mejores oportunidades de inversión en películas o series basándote en tendencias de mercado, ROI histórico y demanda del público.",
         "metadata_questions": [
             "¿Qué tablas contienen datos de presupuesto (budget), ingresos (revenue), popularidad y valoración de películas?",
             "¿Existen columnas sobre compañías de producción, países de producción o información temporal de las películas?",
+        ],
+        "metadata_questions_series": [
+            "¿Qué tablas y columnas contienen información sobre series (type = 'SHOW'), incluyendo géneros, puntuación (imdb_score, tmdb_score), popularidad (tmdb_popularity), temporadas (seasons) y clasificación por edades?",
+            "¿Qué columnas indican el año de estreno, la duración (runtime), el país de producción y la clasificación por edades de las series?",
         ],
         "data_questions_template": [
             "¿Cuáles son los géneros con tendencia de crecimiento en los últimos años? Compara el número de películas y revenue promedio por género entre películas antiguas y recientes.",
@@ -140,7 +176,14 @@ SCENARIOS = {
             "¿Qué rangos de presupuesto (bajo <5M, medio 5-50M, alto >50M) tienen mejor retorno de inversión? Muestra el ROI promedio por rango.",
             "¿Cuáles son las películas con mayor puntuación y popularidad que tuvieron un presupuesto bajo (menor a 10 millones)?",
         ],
+        "data_questions_series": [
+            "¿Cuáles son los géneros de series (type = 'SHOW') con tendencia de crecimiento en los últimos años? Compara el número de series y la puntuación media (imdb_score) por género entre series antiguas y recientes.",
+            "¿Cuáles son las 10 series (type = 'SHOW') con mejor combinación de puntuación (imdb_score > 7) y alta popularidad (tmdb_popularity)? Muestra título, género, imdb_score, tmdb_popularity, temporadas y año de estreno.",
+            "¿Qué géneros de series ofrecen la mejor combinación de alta demanda (número de series + popularidad) y calidad (imdb_score)? Muestra los 5 mejores con métricas detalladas.",
+            "¿Cuáles son las series con puntuaciones altas (imdb_score > 7.5) que podrían considerarse infravaloradas por tener baja popularidad? Muestra las 10 mejores con título, género, imdb_score, tmdb_popularity y temporadas.",
+        ],
         "parameters": [
+            {"key": "content_type", "label": "Tipo de contenido", "type": "select", "options": ["Películas", "Series"]},
             {"key": "genre", "label": "Género de interés", "type": "select", "options": GENRE_OPTIONS},
             {"key": "budget_range", "label": "Presupuesto máximo", "type": "range", "min": 0, "max": 300, "step": 5, "default": 150, "unit": "M $"},
             {"key": "min_year", "label": "Año mínimo de referencia", "type": "text", "placeholder": "Ej: 2015"},
@@ -148,11 +191,15 @@ SCENARIOS = {
         ],
     },
     "distribution": {
-        "title": "🌍 ¿En qué mercado/idioma distribuir una película?",
-        "description": "Analiza el rendimiento por idioma y mercado para decidir dónde distribuir o en qué idioma producir contenido.",
+        "title": "🌍 ¿En qué mercado distribuir?",
+        "description": "Analiza el rendimiento por idioma y mercado para decidir dónde distribuir películas o series.",
         "metadata_questions": [
             "¿Qué tablas y columnas contienen información sobre el idioma original de las películas, el país de producción y los ingresos?",
             "¿Qué datos hay disponibles sobre la popularidad y recepción de películas por idioma o región?",
+        ],
+        "metadata_questions_series": [
+            "¿Qué tablas y columnas contienen información sobre series (type = 'SHOW'), incluyendo idioma, puntuación (imdb_score, tmdb_score), popularidad (tmdb_popularity) y país de producción?",
+            "¿Existen datos sobre el idioma original, el país de producción y la popularidad de series por región?",
         ],
         "data_questions_template": [
             "¿Cuáles son los 10 idiomas con mayor ingreso (revenue) total y promedio por película?",
@@ -160,9 +207,16 @@ SCENARIOS = {
             "¿Cuál es la tendencia de producción por idioma en los últimos años? ¿Qué idiomas están creciendo más?",
             "Para películas en idiomas distintos al inglés, ¿cuáles tienen mejor rendimiento comercial (revenue) y de crítica (vote_average)?",
         ],
+        "data_questions_series": [
+            "¿Cuáles son los 10 idiomas con mayor número de series (type = 'SHOW') producidas y mayor puntuación media (imdb_score)? Muestra idioma, número de series, imdb_score promedio y tmdb_popularity promedio.",
+            "¿Cuáles son los idiomas con series mejor puntuadas (imdb_score) en promedio? Muestra los 10 principales con número de series y popularidad media.",
+            "¿Cuál es la tendencia de producción de series (type = 'SHOW') por idioma en los últimos años? ¿Qué idiomas están creciendo más?",
+            "Para series en idiomas distintos al inglés, ¿cuáles tienen mejor rendimiento (mayor tmdb_popularity e imdb_score)? Muestra las 10 principales.",
+        ],
         "parameters": [
-            {"key": "genre", "label": "Género de la película", "type": "select", "options": GENRE_OPTIONS},
-            {"key": "language", "label": "Idioma de la película", "type": "select", "options": [l["label"] for l in LANGUAGE_OPTIONS]},
+            {"key": "content_type", "label": "Tipo de contenido", "type": "select", "options": ["Películas", "Series"]},
+            {"key": "genre", "label": "Género", "type": "select", "options": GENRE_OPTIONS},
+            {"key": "language", "label": "Idioma", "type": "select", "options": [l["label"] for l in LANGUAGE_OPTIONS]},
             {"key": "budget_range", "label": "Presupuesto máximo", "type": "range", "min": 0, "max": 300, "step": 5, "default": 150, "unit": "M $"},
             {"key": "min_year", "label": "Año mínimo de referencia", "type": "text", "placeholder": "Ej: 2015"},
         ],
@@ -240,12 +294,18 @@ def build_param_context(params: dict | None) -> str:
         return ""
 
     filters = []
+    if params.get("content_type"):
+        ct = params["content_type"]
+        if ct == "Series":
+            filters.append("analiza SOLO series (type = 'SHOW'), NO películas")
+        else:
+            filters.append("analiza SOLO películas, NO series")
     if params.get("genre"):
         filters.append(f"género '{params['genre']}'")
     if params.get("budget_range"):
         filters.append(f"con presupuesto máximo de {params['budget_range']}")
     if params.get("min_year"):
-        filters.append(f"considerando solo películas desde el año {params['min_year']}")
+        filters.append(f"considerando solo registros desde el año {params['min_year']}")
     if params.get("max_year"):
         filters.append(f"hasta el año {params['max_year']}")
     if params.get("min_rating"):
@@ -287,6 +347,13 @@ def compute_total_steps(
         ]
 
     data_questions = custom_data_qs or list(scenario["data_questions_template"])
+
+    # Investment/Distribution: usar plantillas de series si content_type es "Series"
+    if scenario_key in ("investment", "distribution") and not custom_data_qs:
+        if (params or {}).get("content_type") == "Series":
+            if not custom_metadata_qs:
+                metadata_questions = list(scenario.get("metadata_questions_series", scenario["metadata_questions"]))
+            data_questions = list(scenario.get("data_questions_series", scenario["data_questions_template"]))
 
     # Estadísticas: seleccionar preguntas dinámicamente según la categoría
     if scenario_key == "statistics" and not custom_data_qs:
@@ -352,6 +419,11 @@ async def run_decision_pipeline_stream(
     Generador asíncrono que ejecuta el pipeline y yield'ea eventos de progreso.
     Cada evento es un dict con: type, step, total, percent, phase, message, (data).
     """
+    # Resolver vista fija del escenario (los predefinidos ignoran use_views del frontend)
+    resolved_view = resolve_scenario_view(scenario_key, params)
+    if resolved_view:
+        use_views = resolved_view
+
     scenario = SCENARIOS.get(scenario_key, SCENARIOS["custom"])
     metadata_questions, data_questions, total_steps = compute_total_steps(
         scenario_key, custom_question, custom_metadata_qs, custom_data_qs, params,

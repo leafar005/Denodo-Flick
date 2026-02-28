@@ -59,7 +59,6 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     document.getElementById("btn-back").addEventListener("click", showScenarios);
-    document.getElementById("btn-new")?.addEventListener("click", showScenarios);
     document.getElementById("btn-cancel-query")?.addEventListener("click", cancelQuery);
 
 });
@@ -247,6 +246,13 @@ function showScenarios() {
     document.getElementById("loading").classList.add("hidden");
 }
 
+function goBack() {
+    hideAllSections();
+    document.getElementById("results-content").classList.add("hidden");
+    document.getElementById("loading").classList.add("hidden");
+    document.getElementById(_previousSection).classList.remove("hidden");
+}
+
 function showResults() {
     hideAllSections();
     document.getElementById("results-section").classList.remove("hidden");
@@ -414,9 +420,9 @@ async function runDecision(scenario, customQuestion = null, customMetaQs = null,
     document.getElementById("loading").classList.remove("hidden");
     document.getElementById("results-content").classList.add("hidden");
 
-    // Show/hide auto-view warning
+    // Show/hide auto-view warning (solo para decisión personalizada)
     const autoWarning = document.getElementById("auto-view-warning");
-    if (isAutoViewMode()) {
+    if (scenario === "custom" && isAutoViewMode()) {
         autoWarning.classList.remove("hidden");
     } else {
         autoWarning.classList.add("hidden");
@@ -440,8 +446,11 @@ async function runDecision(scenario, customQuestion = null, customMetaQs = null,
         if (customMetaQs) body.custom_metadata_questions = customMetaQs;
         if (customDataQs) body.custom_data_questions = customDataQs;
         if (params) body.parameters = params;
-        const useViews = getSelectedView();
-        if (useViews) body.use_views = useViews;
+        // Solo enviar use_views para decisiones personalizadas (los escenarios predefinidos tienen vista fija)
+        if (scenario === "custom") {
+            const useViews = getSelectedView();
+            if (useViews) body.use_views = useViews;
+        }
 
         const res = await fetch("/api/decide-stream", {
             method: "POST",
@@ -752,96 +761,51 @@ function closePdfModal() {
 async function downloadPdf() {
     const inclMeta = document.getElementById("pdf-include-meta").checked;
     const inclData = document.getElementById("pdf-include-data").checked;
+    closePdfModal();
 
-    // Build a temporary container to render into PDF
-    const container = document.createElement("div");
-    container.style.padding = "24px";
-    container.style.fontFamily = "Inter, sans-serif";
-    container.style.color = "#1e293b";
-    container.style.maxWidth = "800px";
+    const resultsContent = document.getElementById("results-content");
 
-    // Title
-    const h1 = document.createElement("h1");
-    h1.textContent = "Denodo Flick — Recomendación";
-    h1.style.fontSize = "20px";
-    h1.style.marginBottom = "8px";
-    container.appendChild(h1);
+    // Elements we may temporarily hide
+    const phaseDetails = resultsContent.querySelectorAll("details.phase-details");
+    const actionsBar   = resultsContent.querySelector(".results-actions");
+    const errorsSection = document.getElementById("errors-section");
 
-    if (window._lastResultData?.scenario) {
-        const sub = document.createElement("p");
-        sub.textContent = window._lastResultData.scenario;
-        sub.style.color = "#64748b";
-        sub.style.marginBottom = "16px";
-        container.appendChild(sub);
-    }
+    // Store original states
+    const origActions = actionsBar ? actionsBar.style.display : "";
+    const origPhase0  = phaseDetails[0] ? phaseDetails[0].style.display : "";
+    const origPhase1  = phaseDetails[1] ? phaseDetails[1].style.display : "";
+    const origErrors  = errorsSection ? errorsSection.style.display : "";
 
-    // Decision
-    const decDiv = document.createElement("div");
-    decDiv.innerHTML = renderMarkdown(window._lastResultData?.decision || "Sin recomendación.");
-    decDiv.style.lineHeight = "1.6";
-    container.appendChild(decDiv);
+    // Hide buttons and optional sections
+    if (actionsBar) actionsBar.style.display = "none";
+    if (errorsSection) errorsSection.style.display = "none";
+    if (!inclMeta && phaseDetails[0]) phaseDetails[0].style.display = "none";
+    if (!inclData && phaseDetails[1]) phaseDetails[1].style.display = "none";
 
-    // Optional metadata
-    if (inclMeta && window._lastResultData?.phase1_metadata?.length) {
-        const h2 = document.createElement("h2");
-        h2.textContent = "Detalle de metadatos";
-        h2.style.fontSize = "16px";
-        h2.style.marginTop = "24px";
-        container.appendChild(h2);
-        window._lastResultData.phase1_metadata.forEach(item => {
-            const q = document.createElement("p");
-            q.innerHTML = `<strong>${item.question}</strong>`;
-            container.appendChild(q);
-            const a = document.createElement("div");
-            a.innerHTML = renderMarkdown(item.answer || item.error || "Sin respuesta");
-            a.style.marginBottom = "12px";
-            container.appendChild(a);
-        });
-    }
-
-    // Optional data details
-    if (inclData && window._lastResultData?.phase2_data?.length) {
-        const h2 = document.createElement("h2");
-        h2.textContent = "Detalle de datos extraídos";
-        h2.style.fontSize = "16px";
-        h2.style.marginTop = "24px";
-        container.appendChild(h2);
-        window._lastResultData.phase2_data.forEach(item => {
-            const q = document.createElement("p");
-            q.innerHTML = `<strong>${item.question}</strong>`;
-            container.appendChild(q);
-            const a = document.createElement("div");
-            a.innerHTML = renderMarkdown(item.answer || item.error || "Sin respuesta");
-            a.style.marginBottom = "12px";
-            container.appendChild(a);
-        });
-    }
-
-    container.style.position = "fixed";
-    container.style.left = "-9999px";
-    container.style.top = "0";
-    container.style.width = "800px";
-    container.style.background = "#fff";
-    document.body.appendChild(container);
-
-    // Allow the browser to paint the container before capturing
-    await new Promise(r => setTimeout(r, 300));
+    // Force open the <details> that we want to include so content is visible
+    if (inclMeta && phaseDetails[0]) phaseDetails[0].setAttribute("open", "");
+    if (inclData && phaseDetails[1]) phaseDetails[1].setAttribute("open", "");
 
     const opt = {
         margin: [10, 10, 10, 10],
         filename: "denodo-flick-recomendacion.pdf",
         image: { type: "jpeg", quality: 0.98 },
-        html2canvas: { scale: 2, useCORS: true, logging: false, windowWidth: 800 },
+        html2canvas: { scale: 2, useCORS: true, backgroundColor: "#ffffff" },
         jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
     };
 
-    html2pdf().set(opt).from(container).save().then(() => {
-        document.body.removeChild(container);
-        closePdfModal();
-    }).catch(() => {
-        if (container.parentNode) document.body.removeChild(container);
-        closePdfModal();
-    });
+    try {
+        await html2pdf().set(opt).from(resultsContent).save();
+    } finally {
+        // Restore everything
+        if (actionsBar) actionsBar.style.display = origActions;
+        if (errorsSection) errorsSection.style.display = origErrors;
+        if (phaseDetails[0]) phaseDetails[0].style.display = origPhase0;
+        if (phaseDetails[1]) phaseDetails[1].style.display = origPhase1;
+        // Close details that were force-opened
+        if (inclMeta && phaseDetails[0]) phaseDetails[0].removeAttribute("open");
+        if (inclData && phaseDetails[1]) phaseDetails[1].removeAttribute("open");
+    }
 }
 
 
