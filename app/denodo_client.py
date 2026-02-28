@@ -20,7 +20,7 @@ DENODO_PASSWORD = os.getenv("DENODO_PASSWORD", "admin")
 
 TIMEOUT = httpx.Timeout(180.0, connect=10.0)
 
-CUSTOM_INSTRUCTIONS = "Responde siempre en español. No incluyas disclaimers, advertencias ni notas sobre la precisión de los datos al final de la respuesta."
+CUSTOM_INSTRUCTIONS = "Responde siempre en español. No incluyas disclaimers, advertencias ni notas sobre la precisión de los datos al final de la respuesta. NUNCA pidas clarificaciones ni menciones ambigüedades. Si hay varias métricas posibles (revenue, score, popularidad), usa todas las disponibles en la consulta. Ejecuta la consulta directamente con tu mejor interpretación."
 
 # Patrones de disclaimer que el SDK suele añadir al final
 _DISCLAIMER_MARKERS = [

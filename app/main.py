@@ -159,16 +159,33 @@ async def discover_views():
     """
     try:
         response = await answer_metadata_question(
-            "Lista TODAS las tablas y vistas disponibles en la base de datos. "
-            "Para cada una indica su nombre completo con formato esquema.nombre_vista y una breve descripción de qué contiene."
+            "List all available views"
         )
+        # El SDK devuelve tables_used con la lista de vistas directamente
+        views = []
+        if isinstance(response, dict):
+            # Extraer de tables_used si existe
+            tables_used = response.get("tables_used", [])
+            if tables_used:
+                views = [t for t in tables_used if "." in t]
+
+            # Fallback: intentar parsear del campo answer si es texto
+            if not views:
+                answer_text = response.get("answer", "")
+                if isinstance(answer_text, str) and answer_text:
+                    import re
+                    matches = re.findall(r'\b(\w+\.\w+)\b', answer_text)
+                    views = list(dict.fromkeys(m for m in matches
+                        if len(m.split(".")[0]) > 1 and len(m.split(".")[1]) > 1))
+
         return {
             "status": "ok",
-            "answer": response.get("answer", response),
+            "views": views,
+            "answer": response.get("answer", "") if isinstance(response, dict) else str(response),
             "raw": response,
         }
     except Exception as e:
-        return {"status": "error", "error": str(e)}
+        return {"status": "error", "error": str(e), "views": []}
 
 
 @app.post("/api/ask")

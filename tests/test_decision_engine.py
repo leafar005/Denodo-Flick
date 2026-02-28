@@ -42,6 +42,12 @@ class TestBuildMetadataPrefix:
         assert "tabla2" in result
         assert "EXCLUSIVAMENTE" in result
 
+    def test_with_use_views_restricts_scope(self):
+        ctx = "- La tabla admin.netflix contiene columnas: title, rating"
+        result = _build_metadata_prefix(ctx, use_views="admin.netflix")
+        assert "admin.netflix" in result
+        assert "NO consultes" in result
+
 
 # ═══════════════════════════════════════════════════════════════
 # Tests para build_param_context

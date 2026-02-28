@@ -7,7 +7,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/static/style.css">
+    <link rel="stylesheet" href="/static/style.css?v=3">
     <script>
         // Apply saved theme immediately to prevent flash
         if (localStorage.getItem("theme") === "dark") {
@@ -32,7 +32,8 @@
             </div>
             <div class="view-selector">
                 <label for="view-select">Vista de datos:</label>
-                <input id="view-select" type="text" list="view-options" placeholder="Ej: admin.movies" autocomplete="off">
+                <button id="btn-auto-view" class="btn-auto active" title="Modo automático: el sistema elige la vista según la consulta" onclick="toggleAutoView()">🤖 Auto</button>
+                <input id="view-select" type="text" list="view-options" placeholder="Ej: admin.movies" autocomplete="off" disabled>
                 <datalist id="view-options"></datalist>
                 <button id="btn-discover-views" class="btn-discover" title="Descubrir vistas disponibles">⚡</button>
                 <span id="discover-status" class="discover-status"></span>
@@ -50,6 +51,11 @@
                     <h3>¿Qué película producir?</h3>
                     <p>Analiza géneros, presupuestos, ingresos y ratings para recomendar qué tipo de película producir.</p>
                 </div>
+                <div class="scenario-card" data-scenario="series_production">
+                    <div class="card-icon">📺</div>
+                    <h3>¿Qué serie producir?</h3>
+                    <p>Analiza géneros, puntuaciones, popularidad y temporadas para recomendar qué tipo de serie producir.</p>
+                </div>
                 <div class="scenario-card" data-scenario="investment">
                     <div class="card-icon">💰</div>
                     <h3>¿En qué películas invertir?</h3>
@@ -59,6 +65,11 @@
                     <div class="card-icon">🌍</div>
                     <h3>¿En qué mercado distribuir?</h3>
                     <p>Analiza rendimiento por idioma y mercado para decidir dónde distribuir contenido.</p>
+                </div>
+                <div class="scenario-card" data-scenario="actor_recommendation">
+                    <div class="card-icon">🎭</div>
+                    <h3>¿Qué actor contratar?</h3>
+                    <p>Recomienda los mejores actores para un género concreto según su historial, popularidad e ingresos.</p>
                 </div>
             </div>
             <div class="custom-decision-link">
@@ -137,6 +148,12 @@
                         <span class="phase-text">Fase 3: Generando recomendación...</span>
                     </div>
                 </div>
+
+                <p id="auto-view-warning" class="auto-view-warning hidden">
+                    🤖 Modo automático activado — el sistema debe resolver qué vista usar en cada consulta, lo que añade tiempo extra.
+                </p>
+
+                <button id="btn-cancel-query" class="btn-cancel">✕ Cancelar consulta</button>
             </div>
 
             <div id="results-content" class="hidden">
@@ -148,14 +165,14 @@
 
                 <!-- Detalles del análisis (colapsable) -->
                 <details class="phase-details">
-                    <summary>📋 Ver detalle del análisis de metadatos</summary>
+                    <summary>📋 1. Ver detalle del análisis de metadatos</summary>
                     <div class="phase-results">
                         <div id="phase1-results"></div>
                     </div>
                 </details>
 
                 <details class="phase-details">
-                    <summary>📊 Ver detalle de los datos extraídos</summary>
+                    <summary>📊 2. Ver detalle de los datos extraídos</summary>
                     <div class="phase-results">
                         <div id="phase2-results"></div>
                     </div>
@@ -176,6 +193,6 @@
         <p>HackUDC 2026 — Reto Denodo · Denodo Flick · Powered by Denodo AI SDK</p>
     </footer>
 
-    <script src="/static/app.js"></script>
+    <script src="/static/app.js?v=3"></script>
 </body>
 </html>

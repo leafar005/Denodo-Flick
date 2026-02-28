@@ -322,6 +322,41 @@ header::after {
     outline: none;
 }
 
+.btn-auto {
+    background: rgba(255,255,255,0.12);
+    border: 1px solid rgba(255,255,255,0.2);
+    color: rgba(255,255,255,0.8);
+    border-radius: 100px;
+    padding: 0.25rem 0.7rem;
+    font-size: 0.78rem;
+    cursor: pointer;
+    transition: var(--transition);
+    font-family: inherit;
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+.btn-auto:hover {
+    background: rgba(255,255,255,0.25);
+}
+
+.btn-auto.active {
+    background: rgba(255, 255, 255, 0.3) !important;
+    border-color: rgba(255, 255, 255, 0.6) !important;
+    color: #fff !important;
+    box-shadow: 0 0 12px rgba(255, 255, 255, 0.4), inset 0 0 6px rgba(255, 255, 255, 0.15);
+}
+
+.btn-auto.active:hover {
+    background: rgba(255, 255, 255, 0.4) !important;
+    box-shadow: 0 0 16px rgba(255, 255, 255, 0.5), inset 0 0 6px rgba(255, 255, 255, 0.2);
+}
+
+.view-selector input[type="text"].disabled-auto {
+    opacity: 0.4;
+    pointer-events: none;
+}
+
 .btn-discover {
     background: rgba(255,255,255,0.15);
     border: 1px solid rgba(255,255,255,0.2);
@@ -837,6 +872,40 @@ textarea {
     font-weight: 600;
     margin-bottom: 1.75rem;
     color: var(--text);
+}
+
+.auto-view-warning {
+    font-size: 0.82rem;
+    color: var(--text-muted);
+    background: var(--surface);
+    border: 1px dashed var(--border);
+    border-radius: var(--radius);
+    padding: 0.6rem 1rem;
+    margin-top: 1.25rem;
+    max-width: 420px;
+    margin-left: auto;
+    margin-right: auto;
+    line-height: 1.45;
+}
+
+.btn-cancel {
+    display: block;
+    margin: 1.5rem auto 0;
+    padding: 0.55rem 1.5rem;
+    font-size: 0.88rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    cursor: pointer;
+    transition: all var(--transition);
+}
+
+.btn-cancel:hover {
+    color: #ef4444;
+    border-color: #ef4444;
+    background: rgba(239, 68, 68, 0.06);
 }
 
 .loading-phases {

@@ -15,6 +15,9 @@ document.addEventListener("DOMContentLoaded", () => {
     // Discover views button
     document.getElementById("btn-discover-views")?.addEventListener("click", discoverViews);
 
+    // Auto-discover views on page load
+    discoverViews();
+
     // ── Escenarios ──────────────────────────────────────────
     document.querySelectorAll(".scenario-card").forEach(card => {
         card.addEventListener("click", () => {
@@ -57,6 +60,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     document.getElementById("btn-back").addEventListener("click", showScenarios);
     document.getElementById("btn-new")?.addEventListener("click", showScenarios);
+    document.getElementById("btn-cancel-query")?.addEventListener("click", cancelQuery);
 
 });
 
@@ -65,9 +69,35 @@ document.addEventListener("DOMContentLoaded", () => {
 // View selector helper
 // ═══════════════════════════════════════════════════════════════
 
+function isAutoViewMode() {
+    const btn = document.getElementById("btn-auto-view");
+    return btn && btn.classList.contains("active");
+}
+
 function getSelectedView() {
+    if (isAutoViewMode()) return null;
     const input = document.getElementById("view-select");
     return input ? input.value.trim() || null : null;
+}
+
+
+// ═══════════════════════════════════════════════════════════════
+// Auto view toggle
+// ═══════════════════════════════════════════════════════════════
+
+function toggleAutoView() {
+    const btn = document.getElementById("btn-auto-view");
+    const input = document.getElementById("view-select");
+    const isActive = btn.classList.toggle("active");
+
+    if (isActive) {
+        input.disabled = true;
+        input.classList.add("disabled-auto");
+    } else {
+        input.disabled = false;
+        input.classList.remove("disabled-auto");
+        input.focus();
+    }
 }
 
 
@@ -88,16 +118,9 @@ async function discoverViews() {
         const res = await fetch("/api/discover-views");
         const data = await res.json();
 
-        if (data.status === "ok" && data.answer) {
-            // Parse view names from the answer text (pattern: database.view_name)
-            const viewPattern = /\b(\w+\.\w+)\b/g;
-            const matches = data.answer.match(viewPattern) || [];
-            // Dedupe and filter reasonable view names
-            const views = [...new Set(matches)].filter(v => {
-                const parts = v.split(".");
-                return parts.length === 2 && parts[0].length > 1 && parts[1].length > 1
-                    && !v.match(/^(e\.g|i\.e|vs\.|etc\.|database\.tabla|esquema\.nombre|nombre\.vista)$/i);
-            });
+        if (data.status === "ok") {
+            // El backend devuelve directamente la lista de vistas parseada
+            const views = data.views || [];
 
             datalist.innerHTML = "";
             views.forEach(view => {
@@ -108,9 +131,9 @@ async function discoverViews() {
 
             status.textContent = views.length > 0 ? `${views.length} vistas encontradas` : "Sin vistas detectadas";
 
-            // Auto-fill first view if input is empty
+            // Auto-fill first view if input is empty and auto mode is off
             const input = document.getElementById("view-select");
-            if (!input.value && views.length > 0) {
+            if (!input.value && views.length > 0 && !isAutoViewMode()) {
                 input.value = views[0];
             }
         } else {
@@ -365,10 +388,39 @@ function collectScenarioParams() {
 // Main decision pipeline
 // ═══════════════════════════════════════════════════════════════
 
+let _previousSection = "scenario-section";
+let _activeAbortController = null;
+
+function cancelQuery() {
+    if (_activeAbortController) {
+        _activeAbortController.abort();
+        _activeAbortController = null;
+    }
+    document.getElementById("loading").classList.add("hidden");
+    document.getElementById("auto-view-warning").classList.add("hidden");
+    hideAllSections();
+    document.getElementById(_previousSection).classList.remove("hidden");
+}
+
 async function runDecision(scenario, customQuestion = null, customMetaQs = null, customDataQs = null, params = null) {
+    // Track which section was visible before so cancel can return there
+    ["preview-section", "custom-section", "scenario-section"].forEach(id => {
+        if (!document.getElementById(id).classList.contains("hidden")) {
+            _previousSection = id;
+        }
+    });
+
     showResults();
     document.getElementById("loading").classList.remove("hidden");
     document.getElementById("results-content").classList.add("hidden");
+
+    // Show/hide auto-view warning
+    const autoWarning = document.getElementById("auto-view-warning");
+    if (isAutoViewMode()) {
+        autoWarning.classList.remove("hidden");
+    } else {
+        autoWarning.classList.add("hidden");
+    }
 
     // Reset phase indicators
     const p1 = document.getElementById("phase1-status");
@@ -376,7 +428,9 @@ async function runDecision(scenario, customQuestion = null, customMetaQs = null,
     const p3 = document.getElementById("phase3-status");
     [p1, p2, p3].forEach(p => { p.className = "phase-indicator"; });
 
-
+    // Setup abort controller for cancellation
+    _activeAbortController = new AbortController();
+    const signal = _activeAbortController.signal;
 
     try {
         const body = {
@@ -393,6 +447,7 @@ async function runDecision(scenario, customQuestion = null, customMetaQs = null,
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(body),
+            signal: signal,
         });
 
         const reader = res.body.getReader();
@@ -469,11 +524,15 @@ async function runDecision(scenario, customQuestion = null, customMetaQs = null,
         }
 
     } catch (err) {
+        if (err.name === "AbortError") return; // User cancelled — already handled
         document.getElementById("loading").classList.add("hidden");
         document.getElementById("results-content").classList.remove("hidden");
         document.getElementById("decision-text").innerHTML = `<p>Error: ${err.message}</p>`;
         document.getElementById("phase1-results").innerHTML = "";
         document.getElementById("phase2-results").innerHTML = "";
+    } finally {
+        _activeAbortController = null;
+        document.getElementById("auto-view-warning").classList.add("hidden");
     }
 }
 
