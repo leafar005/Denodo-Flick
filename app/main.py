@@ -6,11 +6,12 @@ HackUDC 2026 - Reto Denodo
 from fastapi import FastAPI, Request
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, StreamingResponse
 from pydantic import BaseModel
-from app.decision_engine import run_decision_pipeline, SCENARIOS
+from app.decision_engine import run_decision_pipeline, run_decision_pipeline_stream, SCENARIOS
 from app.denodo_client import check_health, answer_metadata_question, answer_data_question, get_metadata
 import os
+import json
 
 app = FastAPI(
     title="DecisionLens - Denodo Decision Tool",
@@ -120,6 +121,34 @@ async def decide(req: DecisionRequest):
         params=req.parameters,
     )
     return result
+
+
+@app.post("/api/decide-stream")
+async def decide_stream(req: DecisionRequest):
+    """
+    Ejecuta el pipeline de decisión con streaming SSE de progreso.
+    Emite eventos 'progress' con porcentaje y un evento 'complete' al finalizar.
+    """
+    async def event_generator():
+        async for event in run_decision_pipeline_stream(
+            scenario_key=req.scenario,
+            custom_question=req.custom_question,
+            custom_metadata_qs=req.custom_metadata_questions,
+            custom_data_qs=req.custom_data_questions,
+            use_views=req.use_views,
+            params=req.parameters,
+        ):
+            yield f"event: {event['type']}\ndata: {json.dumps(event, ensure_ascii=False)}\n\n"
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
+    )
 
 
 @app.post("/api/ask")

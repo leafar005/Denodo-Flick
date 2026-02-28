@@ -4,6 +4,9 @@
    ════════════════════════════════════════════════════════════ */
 
 document.addEventListener("DOMContentLoaded", () => {
+    // ── Theme toggle ────────────────────────────────────────
+    initThemeToggle();
+
     checkHealth();
 
     // Auto-sync metadatos con "admin" al cargar
@@ -52,11 +55,6 @@ document.addEventListener("DOMContentLoaded", () => {
     document.getElementById("btn-back").addEventListener("click", showScenarios);
     document.getElementById("btn-new")?.addEventListener("click", showScenarios);
 
-    // ── Pregunta libre (sin selector de fase) ───────────────
-    document.getElementById("btn-explore").addEventListener("click", exploreFree);
-    document.getElementById("explore-input").addEventListener("keydown", e => {
-        if (e.key === "Enter") exploreFree();
-    });
 });
 
 
@@ -67,6 +65,32 @@ document.addEventListener("DOMContentLoaded", () => {
 function getSelectedView() {
     const sel = document.getElementById("view-select");
     return sel ? sel.value || null : null;
+}
+
+
+// ═══════════════════════════════════════════════════════════════
+// Theme toggle (light / dark)
+// ═══════════════════════════════════════════════════════════════
+
+function initThemeToggle() {
+    const saved = localStorage.getItem("theme");
+    if (saved === "dark") {
+        document.documentElement.setAttribute("data-theme", "dark");
+    }
+
+    const btn = document.getElementById("theme-toggle");
+    if (btn) {
+        btn.addEventListener("click", () => {
+            const isDark = document.documentElement.getAttribute("data-theme") === "dark";
+            if (isDark) {
+                document.documentElement.removeAttribute("data-theme");
+                localStorage.setItem("theme", "light");
+            } else {
+                document.documentElement.setAttribute("data-theme", "dark");
+                localStorage.setItem("theme", "dark");
+            }
+        });
+    }
 }
 
 
@@ -250,12 +274,13 @@ async function runDecision(scenario, customQuestion = null, customMetaQs = null,
     document.getElementById("loading").classList.remove("hidden");
     document.getElementById("results-content").classList.add("hidden");
 
-    // Animate phases
+    // Reset phase indicators
     const p1 = document.getElementById("phase1-status");
     const p2 = document.getElementById("phase2-status");
     const p3 = document.getElementById("phase3-status");
     [p1, p2, p3].forEach(p => { p.className = "phase-indicator"; });
-    p1.classList.add("active");
+
+
 
     try {
         const body = {
@@ -268,27 +293,84 @@ async function runDecision(scenario, customQuestion = null, customMetaQs = null,
         const useViews = getSelectedView();
         if (useViews) body.use_views = useViews;
 
-        // Simulate phase progression (the backend does all 3 phases in one call)
-        setTimeout(() => { p1.className = "phase-indicator done"; p2.classList.add("active"); }, 3000);
-        setTimeout(() => { p2.className = "phase-indicator done"; p3.classList.add("active"); }, 8000);
-
-        const res = await fetch("/api/decide", {
+        const res = await fetch("/api/decide-stream", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(body),
         });
 
-        const data = await res.json();
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = "";
+        let finalData = null;
 
-        // Mark all done
-        [p1, p2, p3].forEach(p => { p.className = "phase-indicator done"; });
+        while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
 
-        // Short delay then show results
-        setTimeout(() => {
+            buffer += decoder.decode(value, { stream: true });
+
+            // Parse SSE events from buffer
+            const parts = buffer.split("\n\n");
+            buffer = parts.pop(); // keep incomplete chunk
+
+            for (const part of parts) {
+                if (!part.trim()) continue;
+
+                let eventType = "message";
+                let eventData = null;
+
+                for (const line of part.split("\n")) {
+                    if (line.startsWith("event: ")) {
+                        eventType = line.slice(7).trim();
+                    } else if (line.startsWith("data: ")) {
+                        try {
+                            eventData = JSON.parse(line.slice(6));
+                        } catch { /* ignore parse errors */ }
+                    }
+                }
+
+                if (!eventData) continue;
+
+                if (eventType === "progress") {
+                    // Update phase indicators
+                    const phase = eventData.phase;
+                    if (phase === "metadata") {
+                        p1.className = "phase-indicator active";
+                        p1.querySelector(".phase-text").textContent =
+                            `Fase 1: Explorando metadatos (${eventData.phase_step}/${eventData.phase_total})...`;
+                    } else if (phase === "data") {
+                        p1.className = "phase-indicator done";
+                        p2.className = "phase-indicator active";
+                        p2.querySelector(".phase-text").textContent =
+                            `Fase 2: Consultando datos (${eventData.phase_step}/${eventData.phase_total})...`;
+                    } else if (phase === "decision") {
+                        p1.className = "phase-indicator done";
+                        p2.className = "phase-indicator done";
+                        p3.className = "phase-indicator active";
+                        p3.querySelector(".phase-text").textContent =
+                            "Fase 3: Generando recomendación...";
+                    }
+                } else if (eventType === "complete") {
+                    finalData = eventData.data;
+                    // Mark all done
+                    [p1, p2, p3].forEach(p => { p.className = "phase-indicator done"; });
+                }
+            }
+        }
+
+        // Show results
+        if (finalData) {
+            setTimeout(() => {
+                document.getElementById("loading").classList.add("hidden");
+                renderResults(finalData);
+                document.getElementById("results-content").classList.remove("hidden");
+            }, 400);
+        } else {
             document.getElementById("loading").classList.add("hidden");
-            renderResults(data);
             document.getElementById("results-content").classList.remove("hidden");
-        }, 500);
+            document.getElementById("decision-text").innerHTML = "<p>No se recibieron resultados del servidor.</p>";
+        }
 
     } catch (err) {
         document.getElementById("loading").classList.add("hidden");
@@ -357,34 +439,5 @@ function createQABlock(item) {
 }
 
 
-// ═══════════════════════════════════════════════════════════════
-// Free exploration
-// ═══════════════════════════════════════════════════════════════
 
-async function exploreFree() {
-    const input = document.getElementById("explore-input");
-    const resultBox = document.getElementById("explore-result");
-    const question = input.value.trim();
-
-    if (!question) return;
-
-    resultBox.classList.remove("hidden");
-    resultBox.innerHTML = "<p>⏳ Consultando...</p>";
-
-    try {
-        const body = { question };
-        const useViews = getSelectedView();
-        if (useViews) body.use_views = useViews;
-        const res = await fetch("/api/ask", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(body),
-        });
-        const data = await res.json();
-        const answer = data.answer || data.error || JSON.stringify(data, null, 2);
-        resultBox.innerHTML = renderMarkdown(answer);
-    } catch (err) {
-        resultBox.innerHTML = `<p>Error: ${err.message}</p>`;
-    }
-}
 

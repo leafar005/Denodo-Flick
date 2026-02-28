@@ -4,11 +4,25 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>DecisionLens — Denodo Decision Tool</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/static/style.css">
+    <script>
+        // Apply saved theme immediately to prevent flash
+        if (localStorage.getItem("theme") === "dark") {
+            document.documentElement.setAttribute("data-theme", "dark");
+        }
+    </script>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 </head>
 <body>
     <header>
+        <!-- Dark mode toggle -->
+        <button id="theme-toggle" class="theme-toggle" aria-label="Cambiar tema" title="Cambiar tema">
+            <span class="toggle-icon sun">☀️</span>
+            <span class="toggle-icon moon">🌙</span>
+        </button>
         <div class="header-content">
             <h1>🎯 DecisionLens</h1>
             <p class="subtitle">Herramienta de toma de decisiones basada en datos — Denodo AI SDK</p>
@@ -17,11 +31,11 @@
                 <span class="text">Comprobando conexión...</span>
             </div>
             <div class="view-selector">
-                <label for="view-select">🗂 Vista de datos:</label>
+                <label for="view-select">Vista de datos:</label>
                 <select id="view-select">
-                    <option value="">Automática (todas)</option>
-                    <option value="admin.p_movies">admin.p_movies (pequeña, más rápida)</option>
-                    <option value="admin.movies">admin.movies (completa)</option>
+                    <option value="admin.movies">completa</option>
+                    <option value="admin.movies_medium">mediana</option>
+                    <option value="admin.movies_small">pequeña</option>
                 </select>
             </div>
         </div>
@@ -104,36 +118,24 @@
             </div>
         </section>
 
-        <!-- Sección de pregunta libre -->
-        <section id="explore-section">
-            <h2>💬 Pregunta lo que quieras</h2>
-            <p class="section-desc">Haz una pregunta sobre los datos y obtén una respuesta fundamentada</p>
-            <div class="explore-form">
-                <div class="explore-row">
-                    <input type="text" id="explore-input" placeholder="Ej: ¿Cuáles son los géneros de película más rentables?">
-                    <button id="btn-explore" class="btn-primary">Preguntar</button>
-                </div>
-                <div id="explore-result" class="result-box hidden"></div>
-            </div>
-        </section>
-
         <!-- Resultados del pipeline -->
         <section id="results-section" class="hidden">
             <div id="loading" class="hidden">
                 <div class="spinner"></div>
                 <p class="loading-text">Analizando datos con Denodo AI SDK...</p>
+
                 <div class="loading-phases">
                     <div id="phase1-status" class="phase-indicator">
                         <span class="phase-dot"></span>
-                        Fase 1: Explorando metadatos...
+                        <span class="phase-text">Fase 1: Explorando metadatos...</span>
                     </div>
                     <div id="phase2-status" class="phase-indicator">
                         <span class="phase-dot"></span>
-                        Fase 2: Consultando datos...
+                        <span class="phase-text">Fase 2: Consultando datos...</span>
                     </div>
                     <div id="phase3-status" class="phase-indicator">
                         <span class="phase-dot"></span>
-                        Fase 3: Generando recomendación...
+                        <span class="phase-text">Fase 3: Generando recomendación...</span>
                     </div>
                 </div>
             </div>

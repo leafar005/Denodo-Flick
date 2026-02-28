@@ -135,6 +135,37 @@ def build_param_context(params: dict | None) -> str:
     return " Filtra y enfoca el análisis considerando estos parámetros del usuario: " + ", ".join(filters) + "."
 
 
+def compute_total_steps(
+    scenario_key: str,
+    custom_question: str | None,
+    custom_metadata_qs: list[str] | None,
+    custom_data_qs: list[str] | None,
+) -> tuple[list[str], list[str], int]:
+    """
+    Pre-calcula las preguntas de cada fase y el total de pasos para la barra de progreso.
+    Retorna (metadata_questions, data_questions, total_steps).
+    """
+    scenario = SCENARIOS.get(scenario_key, SCENARIOS["custom"])
+    metadata_questions = custom_metadata_qs or scenario["metadata_questions"]
+
+    if scenario_key == "custom" and custom_question and not metadata_questions:
+        metadata_questions = [
+            f"¿Qué tablas y columnas disponibles en el Data Marketplace están relacionadas con: {custom_question}? Describe la estructura de datos relevante.",
+        ]
+
+    data_questions = custom_data_qs or scenario["data_questions_template"]
+
+    if scenario_key == "custom" and custom_question and not data_questions:
+        data_questions = [
+            f"Basándote en los datos disponibles, {custom_question}. Proporciona datos concretos y cifras.",
+            f"¿Cuáles son las mejores opciones considerando: {custom_question}? Compara al menos 3 alternativas con datos numéricos.",
+        ]
+
+    # +1 for the final decision generation step
+    total = len(metadata_questions) + len(data_questions) + 1
+    return metadata_questions, data_questions, total
+
+
 async def run_decision_pipeline(
     scenario_key: str,
     custom_question: str | None = None,
@@ -147,7 +178,33 @@ async def run_decision_pipeline(
     Ejecuta el pipeline completo de decisión en 2 fases.
     Retorna un dict con los resultados de cada fase y la decisión final.
     """
+    results = {}
+    async for event in run_decision_pipeline_stream(
+        scenario_key, custom_question, custom_metadata_qs,
+        custom_data_qs, use_views, params,
+    ):
+        if event.get("type") == "complete":
+            results = event["data"]
+    return results
+
+
+async def run_decision_pipeline_stream(
+    scenario_key: str,
+    custom_question: str | None = None,
+    custom_metadata_qs: list[str] | None = None,
+    custom_data_qs: list[str] | None = None,
+    use_views: str | None = None,
+    params: dict | None = None,
+):
+    """
+    Generador asíncrono que ejecuta el pipeline y yield'ea eventos de progreso.
+    Cada evento es un dict con: type, step, total, percent, phase, message, (data).
+    """
     scenario = SCENARIOS.get(scenario_key, SCENARIOS["custom"])
+    metadata_questions, data_questions, total_steps = compute_total_steps(
+        scenario_key, custom_question, custom_metadata_qs, custom_data_qs,
+    )
+
     results = {
         "scenario": scenario["title"],
         "description": scenario["description"],
@@ -157,16 +214,24 @@ async def run_decision_pipeline(
         "errors": [],
     }
 
+    current_step = 0
+    n_meta = len(metadata_questions)
+    n_data = len(data_questions)
+
     # ── FASE 1: Análisis de metadatos ──────────────────────────────────
-    metadata_questions = custom_metadata_qs or scenario["metadata_questions"]
-
-    if scenario_key == "custom" and custom_question and not metadata_questions:
-        # Generar preguntas de metadatos a partir de la pregunta personalizada
-        metadata_questions = [
-            f"¿Qué tablas y columnas disponibles en el Data Marketplace están relacionadas con: {custom_question}? Describe la estructura de datos relevante.",
-        ]
-
-    for mq in metadata_questions:
+    for i, mq in enumerate(metadata_questions, 1):
+        current_step += 1
+        percent = int(current_step / total_steps * 100)
+        yield {
+            "type": "progress",
+            "step": current_step,
+            "total": total_steps,
+            "percent": percent,
+            "phase": "metadata",
+            "phase_step": i,
+            "phase_total": n_meta,
+            "message": f"Fase 1: Explorando metadatos ({i}/{n_meta})...",
+        }
         try:
             response = await answer_metadata_question(mq, use_views=use_views)
             results["phase1_metadata"].append({
@@ -189,17 +254,21 @@ async def run_decision_pipeline(
     )
 
     # ── FASE 2: Ejecución de consultas de datos ───────────────────────
-    data_questions = custom_data_qs or scenario["data_questions_template"]
-
-    if scenario_key == "custom" and custom_question and not data_questions:
-        data_questions = [
-            f"Basándote en los datos disponibles, {custom_question}. Proporciona datos concretos y cifras.",
-            f"¿Cuáles son las mejores opciones considerando: {custom_question}? Compara al menos 3 alternativas con datos numéricos.",
-        ]
-
     param_context = build_param_context(params)
 
-    for dq in data_questions:
+    for i, dq in enumerate(data_questions, 1):
+        current_step += 1
+        percent = int(current_step / total_steps * 100)
+        yield {
+            "type": "progress",
+            "step": current_step,
+            "total": total_steps,
+            "percent": percent,
+            "phase": "data",
+            "phase_step": i,
+            "phase_total": n_data,
+            "message": f"Fase 2: Consultando datos ({i}/{n_data})...",
+        }
         dq_final = dq + param_context if param_context else dq
         try:
             response = await answer_data_question(dq_final, use_views=use_views)
@@ -217,6 +286,19 @@ async def run_decision_pipeline(
             results["errors"].append(f"Data error: {str(e)}")
 
     # ── FASE 3: Generar decisión final ─────────────────────────────────
+    current_step += 1
+    percent = int(current_step / total_steps * 100)
+    yield {
+        "type": "progress",
+        "step": current_step,
+        "total": total_steps,
+        "percent": percent,
+        "phase": "decision",
+        "phase_step": 1,
+        "phase_total": 1,
+        "message": "Fase 3: Generando recomendación final...",
+    }
+
     data_context = "\n".join(
         f"- {item['answer']}" for item in results["phase2_data"]
         if item.get("answer")
@@ -251,4 +333,13 @@ async def run_decision_pipeline(
     else:
         results["decision"] = "No se pudieron obtener datos suficientes para generar una recomendación."
 
-    return results
+    # ── Evento final con todos los resultados ──────────────────────────
+    yield {
+        "type": "complete",
+        "step": total_steps,
+        "total": total_steps,
+        "percent": 100,
+        "phase": "done",
+        "message": "Análisis completado",
+        "data": results,
+    }
