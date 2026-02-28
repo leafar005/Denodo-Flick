@@ -1,10 +1,10 @@
-# DecisionLens — Herramienta de Toma de Decisiones con Denodo AI SDK
+# Denodo Flick — Herramienta de Toma de Decisiones con Denodo AI SDK
 
 **HackUDC 2026 — Reto Denodo**
 
 ## ¿Qué es?
 
-DecisionLens es una herramienta analítica de toma de decisiones que utiliza el **Denodo AI SDK** para investigar datos de forma autónoma y ofrecer recomendaciones fundamentadas en datos reales.
+Denodo Flick es una herramienta analítica de toma de decisiones que utiliza el **Denodo AI SDK** para investigar datos de forma autónoma y ofrecer recomendaciones fundamentadas en datos reales.
 
 **No es un chatbot conversacional** — es una herramienta estructurada que implementa un proceso de razonamiento en dos fases obligatorias usando los endpoints del AI SDK.
 
@@ -12,30 +12,30 @@ DecisionLens es una herramienta analítica de toma de decisiones que utiliza el 
 
 ```
 ┌─────────────────────────────────────────────┐
-│            DecisionLens (Frontend)           │
-│         HTML/CSS/JS — Puerto 5000            │
+│            Denodo Flick (Frontend)          │
+│         HTML/CSS/JS — Puerto 5000           │
 └──────────────────┬──────────────────────────┘
                    │
 ┌──────────────────▼──────────────────────────┐
-│         DecisionLens API (FastAPI)           │
-│         Motor de decisiones 2 fases          │
-│  ┌───────────────────────────────────────┐   │
-│  │  Fase 1 → descubre estructura         │   │
-│  │  Fase 1 contexto → inyecta en Fase 2  │   │
-│  │  Fase 2 → consultas informadas        │   │
-│  │  Fase 3 → síntesis y recomendación    │   │
-│  └───────────────────────────────────────┘   │
+│         Denodo Flick API (FastAPI)          │
+│         Motor de decisiones 2 fases         │
+│  ┌───────────────────────────────────────┐  │
+│  │  Fase 1 → descubre estructura         │  │
+│  │  Fase 1 contexto → inyecta en Fase 2  │  │
+│  │  Fase 2 → consultas informadas        │  │
+│  │  Fase 3 → síntesis y recomendación    │  │
+│  └───────────────────────────────────────┘  │
 └──────────────────┬──────────────────────────┘
                    │
 ┌──────────────────▼──────────────────────────┐
-│           Denodo AI SDK (8008)               │
-│  /answerMetadataQuestion  │  /answerDataQ.   │
-│  /getMetadata             │  /health         │
+│           Denodo AI SDK (8008)              │
+│  /answerMetadataQuestion  │  /answerDataQ.  │
+│  /getMetadata             │  /health        │
 └──────────────────┬──────────────────────────┘
                    │
 ┌──────────────────▼──────────────────────────┐
-│     Denodo Platform (Design Studio/DC)       │
-│           Data Marketplace                   │
+│     Denodo Platform (Design Studio/DC)      │
+│           Data Marketplace                  │
 └─────────────────────────────────────────────┘
 ```
 
@@ -61,7 +61,7 @@ Combina todos los hallazgos para generar una decisión concreta con:
 
 ## Adaptación dinámica a cualquier dataset
 
-DecisionLens está diseñado para funcionar con **cualquier dataset** cargado en Denodo, no solo con un conjunto de datos específico:
+Denodo FLick está diseñado para funcionar con **cualquier dataset** cargado en Denodo, no solo con un conjunto de datos específico:
 
 - **Descubrimiento de vistas dinámico**: El selector de vistas en la interfaz permite escribir cualquier nombre de vista (`database.tabla`) y tiene un botón de descubrimiento automático (⚡) que consulta al AI SDK para listar las vistas disponibles en el Data Marketplace.
 - **Fase 1 explora sin hardcodeo**: Las preguntas de metadatos descubren la estructura del dataset sea cual sea.
