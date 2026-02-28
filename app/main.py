@@ -14,7 +14,7 @@ import os
 import json
 
 app = FastAPI(
-    title="DecisionLens - Denodo Decision Tool",
+    title="Denodo Flick - Denodo Decision Tool",
     description="Herramienta de toma de decisiones basada en datos usando Denodo AI SDK",
     version="1.0.0",
 )
@@ -160,7 +160,7 @@ async def discover_views():
     try:
         response = await answer_metadata_question(
             "Lista TODAS las tablas y vistas disponibles en la base de datos. "
-            "Para cada una indica su nombre completo (database.tabla) y una breve descripción de qué contiene."
+            "Para cada una indica su nombre completo con formato esquema.nombre_vista y una breve descripción de qué contiene."
         )
         return {
             "status": "ok",

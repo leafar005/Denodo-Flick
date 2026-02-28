@@ -1,5 +1,5 @@
 /* ════════════════════════════════════════════════════════════
-   DecisionLens — Frontend Logic
+   Denodo Flick — Frontend Logic
    HackUDC 2026 - Reto Denodo
    ════════════════════════════════════════════════════════════ */
 
@@ -96,7 +96,7 @@ async function discoverViews() {
             const views = [...new Set(matches)].filter(v => {
                 const parts = v.split(".");
                 return parts.length === 2 && parts[0].length > 1 && parts[1].length > 1
-                    && !v.match(/^(e\.g|i\.e|vs\.|etc\.)$/i);
+                    && !v.match(/^(e\.g|i\.e|vs\.|etc\.|database\.tabla|esquema\.nombre|nombre\.vista)$/i);
             });
 
             datalist.innerHTML = "";

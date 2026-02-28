@@ -1,5 +1,5 @@
 """
-DecisionLens — Punto de entrada
+Denodo Flick — Punto de entrada
 Herramienta de toma de decisiones con Denodo AI SDK
 HackUDC 2026
 """
