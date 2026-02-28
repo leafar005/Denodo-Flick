@@ -35,6 +35,53 @@ LANGUAGE_OPTIONS = [
     {"value": "ru", "label": "Ruso (ru)"},
 ]
 
+# Formato común que se añade a todas las preguntas de estadísticas
+_STAT_FMT = "Para cada elemento devuelve EXACTAMENTE una línea con el formato: nombre | valor_numérico. Sin encabezados, sin texto adicional, sin markdown."
+_YEAR_FILTER = "Considera solo registros entre el año {min_year} y {max_year}. " 
+
+STATISTICS_QUERIES = {
+    "Géneros": {
+        "questions": [
+            f"Muestra los 12 géneros de películas con mayor popularidad promedio. {_STAT_FMT}",
+            f"Muestra los 12 géneros de películas con mayor número de películas. {_STAT_FMT}",
+        ],
+        "charts": [
+            {"type": "bar", "title": "Géneros más populares (popularidad media)", "color": "#6366f1"},
+            {"type": "bar", "title": "Géneros con más películas", "color": "#f59e0b"},
+        ],
+    },
+    "Películas": {
+        "questions": [
+            f"Muestra las 15 películas con mayor popularidad. Devuelve título y popularidad. {_STAT_FMT}",
+            f"Muestra las 15 películas con mayor revenue (ingresos). Devuelve título y revenue. {_STAT_FMT}",
+        ],
+        "charts": [
+            {"type": "horizontalBar", "title": "Películas más populares", "color": "#10b981"},
+            {"type": "horizontalBar", "title": "Películas con más ingresos", "color": "#ef4444"},
+        ],
+    },
+    "Series": {
+        "questions": [
+            f"Muestra las 15 series (type = 'SHOW') con mayor popularidad (tmdb_popularity). Devuelve título y tmdb_popularity. {_STAT_FMT}",
+            f"Muestra las 15 series (type = 'SHOW') con mayor puntuación (imdb_score). Solo series con imdb_score > 0. Devuelve título e imdb_score. {_STAT_FMT}",
+        ],
+        "charts": [
+            {"type": "horizontalBar", "title": "Series más populares", "color": "#8b5cf6"},
+            {"type": "horizontalBar", "title": "Series mejor puntuadas (IMDb)", "color": "#ec4899"},
+        ],
+    },
+    "Actores": {
+        "questions": [
+            f"Muestra los 15 actores con más películas en el catálogo. Filtra por primaryprofession que contenga 'actor' o 'actress'. Devuelve nombre y número de películas. {_STAT_FMT}",
+            f"Muestra los 15 actores con mayor popularidad media en sus películas (al menos 2 películas). Filtra por primaryprofession que contenga 'actor' o 'actress'. Devuelve nombre y popularidad media (2 decimales). {_STAT_FMT}",
+        ],
+        "charts": [
+            {"type": "horizontalBar", "title": "Actores con más películas", "color": "#14b8a6"},
+            {"type": "bar", "title": "Actores con mayor popularidad media", "color": "#f97316"},
+        ],
+    },
+}
+
 # ──────────────────────────────────────────────────────────────────────
 # Escenarios de decisión predefinidos para el dataset TMDB
 # ──────────────────────────────────────────────────────────────────────
@@ -140,6 +187,19 @@ SCENARIOS = {
             {"key": "min_popularity", "label": "Popularidad mínima", "type": "text", "placeholder": "Ej: 5"},
         ],
     },
+    "statistics": {
+        "title": "📊 Estadísticas del catálogo",
+        "description": "Selecciona una categoría y un rango de años para visualizar los datos más destacados en gráficos interactivos.",
+        "metadata_questions": [
+            "¿Qué tablas y columnas contienen información sobre películas (título, género, presupuesto, ingresos, popularidad, puntuación), series (título, género, imdb_score, tmdb_popularity, temporadas) y actores (nombre, profesión, películas asociadas)?",
+        ],
+        "data_questions_template": [],  # se rellenan dinámicamente según stat_category
+        "parameters": [
+            {"key": "stat_category", "label": "Categoría", "type": "select", "options": ["Géneros", "Películas", "Series", "Actores"]},
+            {"key": "min_year", "label": "Año desde", "type": "text", "placeholder": "Ej: 2000"},
+            {"key": "max_year", "label": "Año hasta", "type": "text", "placeholder": "Ej: 2025"},
+        ],
+    },
     "custom": {
         "title": "🔍 Decisión personalizada",
         "description": "Define tu propio escenario de decisión. El sistema explorará los datos disponibles y te dará una recomendación fundamentada.",
@@ -186,6 +246,8 @@ def build_param_context(params: dict | None) -> str:
         filters.append(f"con presupuesto máximo de {params['budget_range']}")
     if params.get("min_year"):
         filters.append(f"considerando solo películas desde el año {params['min_year']}")
+    if params.get("max_year"):
+        filters.append(f"hasta el año {params['max_year']}")
     if params.get("min_rating"):
         filters.append(f"con rating mínimo de {params['min_rating']}")
     if params.get("language"):
@@ -225,6 +287,19 @@ def compute_total_steps(
         ]
 
     data_questions = custom_data_qs or list(scenario["data_questions_template"])
+
+    # Estadísticas: seleccionar preguntas dinámicamente según la categoría
+    if scenario_key == "statistics" and not custom_data_qs:
+        cat = (params or {}).get("stat_category", "Géneros")
+        stat_cfg = STATISTICS_QUERIES.get(cat, STATISTICS_QUERIES["Géneros"])
+        year_prefix = ""
+        min_y = (params or {}).get("min_year", "").strip()
+        max_y = (params or {}).get("max_year", "").strip()
+        if min_y or max_y:
+            min_y = min_y or "1900"
+            max_y = max_y or "2026"
+            year_prefix = f"Considera solo registros entre el año {min_y} y {max_y}. "
+        data_questions = [year_prefix + q for q in stat_cfg["questions"]]
 
     if scenario_key == "custom" and custom_question and not data_questions:
         data_questions = [
@@ -284,12 +359,20 @@ async def run_decision_pipeline_stream(
 
     results = {
         "scenario": scenario["title"],
+        "scenario_key": scenario_key,
         "description": scenario["description"],
         "phase1_metadata": [],
         "phase2_data": [],
         "decision": None,
         "errors": [],
     }
+    if scenario.get("chart_config"):
+        results["chart_config"] = scenario["chart_config"]
+    # Estadísticas: chart_config dinámico
+    if scenario_key == "statistics":
+        cat = (params or {}).get("stat_category", "Géneros")
+        stat_cfg = STATISTICS_QUERIES.get(cat, STATISTICS_QUERIES["Géneros"])
+        results["chart_config"] = stat_cfg["charts"]
 
     current_step = 0
     n_meta = len(metadata_questions)

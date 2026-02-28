@@ -15,6 +15,8 @@
         }
     </script>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 </head>
 <body>
     <header>
@@ -70,6 +72,11 @@
                     <div class="card-icon">🎭</div>
                     <h3>¿Qué actor contratar?</h3>
                     <p>Recomienda los mejores actores para un género concreto según su historial, popularidad e ingresos.</p>
+                </div>
+                <div class="scenario-card" data-scenario="statistics">
+                    <div class="card-icon">📊</div>
+                    <h3>Estadísticas del catálogo</h3>
+                    <p>Selecciona géneros, películas, series o actores y un rango de años para ver rankings en gráficos interactivos.</p>
                 </div>
             </div>
             <div class="custom-decision-link">
@@ -157,6 +164,12 @@
             </div>
 
             <div id="results-content" class="hidden">
+                <!-- Gráficos (solo para escenario statistics) -->
+                <div id="charts-section" class="charts-section hidden">
+                    <h2>📊 Estadísticas visuales</h2>
+                    <div id="charts-grid" class="charts-grid"></div>
+                </div>
+
                 <!-- Decisión final -->
                 <div id="decision-card" class="decision-card">
                     <h2>📌 Recomendación Final</h2>
@@ -184,7 +197,45 @@
                     <div id="errors-list"></div>
                 </div>
 
-                <button id="btn-new" class="btn-secondary">← Nueva decisión</button>
+                <div class="results-actions">
+                    <button id="btn-new" class="btn-secondary">← Nueva decisión</button>
+                    <div class="results-actions-right">
+                        <button id="btn-download-pdf" class="btn-action" onclick="openPdfModal()" title="Descargar PDF">
+                            📄 Descargar PDF
+                        </button>
+                        <button id="btn-send-email" class="btn-action" onclick="openEmailModal()" title="Enviar por email">
+                            ✉️ Enviar por email
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Modal PDF -->
+            <div id="pdf-modal" class="modal-overlay hidden">
+                <div class="modal">
+                    <h3>📄 Descargar recomendación en PDF</h3>
+                    <p class="modal-desc">Selecciona qué incluir además de la recomendación:</p>
+                    <label class="modal-check"><input type="checkbox" id="pdf-include-meta"> Incluir detalle de metadatos</label>
+                    <label class="modal-check"><input type="checkbox" id="pdf-include-data"> Incluir detalle de datos extraídos</label>
+                    <div class="modal-actions">
+                        <button class="btn-primary" onclick="downloadPdf()">Descargar</button>
+                        <button class="btn-secondary" onclick="closePdfModal()">Cancelar</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Modal Email -->
+            <div id="email-modal" class="modal-overlay hidden">
+                <div class="modal">
+                    <h3>✉️ Enviar recomendación por email</h3>
+                    <p class="modal-desc">Introduce tu correo electrónico:</p>
+                    <input type="email" id="email-input" class="email-input" placeholder="tu@email.com">
+                    <span id="email-status" class="email-status"></span>
+                    <div class="modal-actions">
+                        <button class="btn-primary" onclick="sendEmail()">Enviar</button>
+                        <button class="btn-secondary" onclick="closeEmailModal()">Cancelar</button>
+                    </div>
+                </div>
             </div>
         </section>
     </main>

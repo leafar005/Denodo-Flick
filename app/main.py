@@ -202,3 +202,60 @@ async def ask_free(req: FreeQuestionRequest):
         return {"answer": response.get("answer", response), "raw": response}
     except Exception as e:
         return {"answer": None, "error": str(e)}
+
+
+# ── Modelos extra ────────────────────────────────────────────
+
+class EmailRequest(BaseModel):
+    email: str
+    scenario: str = ""
+    decision: str = ""
+
+
+# ── Email endpoint ───────────────────────────────────────────
+
+@app.post("/api/send-email")
+async def send_email(req: EmailRequest):
+    """Envía la recomendación por correo usando SMTP configurado en .env."""
+    import smtplib
+    from email.mime.text import MIMEText
+    from email.mime.multipart import MIMEMultipart
+
+    smtp_host = os.getenv("SMTP_HOST", "")
+    smtp_port = int(os.getenv("SMTP_PORT", "587"))
+    smtp_user = os.getenv("SMTP_USER", "")
+    smtp_pass = os.getenv("SMTP_PASS", "")
+    smtp_from = os.getenv("SMTP_FROM", smtp_user)
+
+    if not smtp_host or not smtp_user:
+        return {"status": "no_smtp", "error": "SMTP no configurado. Se abrirá tu cliente de correo."}
+
+    try:
+        msg = MIMEMultipart("alternative")
+        msg["Subject"] = f"Denodo Flick — {req.scenario}"
+        msg["From"] = smtp_from
+        msg["To"] = req.email
+
+        # Plain text
+        plain = f"{req.scenario}\n\n{req.decision}"
+        msg.attach(MIMEText(plain, "plain", "utf-8"))
+
+        # HTML version
+        html_body = f"""
+        <div style="font-family:Inter,Arial,sans-serif;max-width:640px;margin:0 auto;color:#1e293b">
+            <h2 style="color:#2563eb">{req.scenario}</h2>
+            <div style="line-height:1.7;white-space:pre-wrap">{req.decision}</div>
+            <hr style="margin:24px 0;border:none;border-top:1px solid #e2e8f0">
+            <p style="font-size:12px;color:#94a3b8">Generado por Denodo Flick — HackUDC 2026</p>
+        </div>
+        """
+        msg.attach(MIMEText(html_body, "html", "utf-8"))
+
+        with smtplib.SMTP(smtp_host, smtp_port) as server:
+            server.starttls()
+            server.login(smtp_user, smtp_pass)
+            server.sendmail(smtp_from, req.email, msg.as_string())
+
+        return {"status": "ok"}
+    except Exception as e:
+        return {"status": "error", "error": str(e)}

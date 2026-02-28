@@ -542,6 +542,26 @@ async function runDecision(scenario, customQuestion = null, customMetaQs = null,
 // ═══════════════════════════════════════════════════════════════
 
 function renderResults(data) {
+    // Stash data for PDF/email export
+    window._lastResultData = data;
+
+    // Charts — render if statistics scenario
+    const chartsSection = document.getElementById("charts-section");
+    const chartsGrid = document.getElementById("charts-grid");
+    chartsGrid.innerHTML = "";
+    // Destroy any previous Chart.js instances
+    if (window._activeCharts) {
+        window._activeCharts.forEach(c => c.destroy());
+    }
+    window._activeCharts = [];
+
+    if (data.scenario_key === "statistics" && data.chart_config && data.phase2_data) {
+        chartsSection.classList.remove("hidden");
+        renderCharts(data);
+    } else {
+        chartsSection.classList.add("hidden");
+    }
+
     // Decision — render as markdown
     const decisionEl = document.getElementById("decision-text");
     decisionEl.innerHTML = renderMarkdown(data.decision || "No se pudo generar una recomendación.");
@@ -594,5 +614,291 @@ function createQABlock(item) {
 }
 
 
+// ═══════════════════════════════════════════════════════════════
+// Chart rendering (statistics scenario)
+// ═══════════════════════════════════════════════════════════════
+
+const CHART_PALETTE = [
+    "#6366f1", "#f59e0b", "#10b981", "#ef4444", "#8b5cf6",
+    "#ec4899", "#14b8a6", "#f97316", "#06b6d4", "#84cc16",
+    "#e11d48", "#7c3aed", "#0ea5e9", "#d946ef", "#22c55e",
+];
+
+function parseDelimitedData(text) {
+    /**
+     * Parses AI SDK answer text that contains lines in "label | value" format.
+     * Returns { labels: string[], values: number[] }.
+     */
+    const labels = [];
+    const values = [];
+    if (!text) return { labels, values };
+
+    const lines = text.split("\n").map(l => l.trim()).filter(Boolean);
+    for (const line of lines) {
+        const clean = line.replace(/^[\-\*\d\.\)]+\s*/, "").trim();
+        if (!clean.includes("|")) continue;
+        const parts = clean.split("|").map(p => p.trim());
+        if (parts.length < 2) continue;
+        let label = parts[0];
+        // Truncate long labels (comma-separated genre lists, etc.)
+        if (label.length > 28) label = label.slice(0, 26) + "…";
+        const numStr = parts[1].replace(/[^\d.\-]/g, "");
+        const val = parseFloat(numStr);
+        if (isNaN(val) || /^-+$/.test(parts[1].trim())) continue;
+        labels.push(label);
+        values.push(val);
+    }
+    return { labels, values };
+}
+
+function renderCharts(data) {
+    const grid = document.getElementById("charts-grid");
+    const configs = data.chart_config || [];
+    const phase2 = data.phase2_data || [];
+
+    const isDark = document.documentElement.getAttribute("data-theme") === "dark";
+    const gridColor = isDark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.08)";
+    const textColor = isDark ? "#cbd5e1" : "#475569";
+
+    configs.forEach((cfg, i) => {
+        const item = phase2[i];
+        if (!item || item.error || !item.answer) return;
+
+        const { labels, values } = parseDelimitedData(item.answer);
+        if (labels.length === 0) return;
+
+        const wrapper = document.createElement("div");
+        wrapper.className = "chart-card";
+
+        const title = document.createElement("h3");
+        title.className = "chart-title";
+        title.textContent = cfg.title;
+        wrapper.appendChild(title);
+
+        const canvas = document.createElement("canvas");
+        wrapper.appendChild(canvas);
+        grid.appendChild(wrapper);
+
+        let chartType = cfg.type === "horizontalBar" ? "bar" : cfg.type;
+        const isHorizontal = cfg.type === "horizontalBar";
+        const isDoughnut = cfg.type === "doughnut";
+
+        const colors = isDoughnut
+            ? labels.map((_, j) => CHART_PALETTE[j % CHART_PALETTE.length])
+            : cfg.color || CHART_PALETTE[i % CHART_PALETTE.length];
+
+        const chartData = {
+            labels: labels,
+            datasets: [{
+                data: values,
+                backgroundColor: isDoughnut ? colors : (Array.isArray(colors) ? colors : colors + "cc"),
+                borderColor: isDoughnut ? "#fff" : (Array.isArray(colors) ? colors : colors),
+                borderWidth: isDoughnut ? 2 : 1,
+                borderRadius: isDoughnut ? 0 : 4,
+            }],
+        };
+
+        const options = {
+            responsive: true,
+            maintainAspectRatio: false,
+            indexAxis: isHorizontal ? "y" : "x",
+            plugins: {
+                legend: { display: isDoughnut, labels: { color: textColor, font: { size: 12 } } },
+                tooltip: {
+                    titleFont: { size: 13 },
+                    bodyFont: { size: 12 },
+                    callbacks: {
+                        label: (ctx) => {
+                            const v = ctx.parsed !== undefined
+                                ? (typeof ctx.parsed === "object" ? (isHorizontal ? ctx.parsed.x : ctx.parsed.y) : ctx.parsed)
+                                : ctx.raw;
+                            return ` ${ctx.label}: ${Number(v).toLocaleString("es-ES")}`;
+                        }
+                    }
+                },
+            },
+            scales: isDoughnut ? {} : {
+                x: {
+                    ticks: { color: textColor, font: { size: isHorizontal ? 12 : 11 }, maxRotation: isHorizontal ? 0 : 40 },
+                    grid: { color: gridColor },
+                },
+                y: {
+                    ticks: { color: textColor, font: { size: isHorizontal ? 11 : 11 } },
+                    grid: { color: gridColor },
+                    beginAtZero: true,
+                },
+            },
+        };
+
+        const chart = new Chart(canvas, { type: chartType, data: chartData, options });
+        window._activeCharts.push(chart);
+    });
+}
 
 
+// ═══════════════════════════════════════════════════════════════
+// PDF Download
+// ═══════════════════════════════════════════════════════════════
+
+// _lastResultData is stored on window by renderResults()
+
+function openPdfModal() {
+    document.getElementById("pdf-modal").classList.remove("hidden");
+}
+function closePdfModal() {
+    document.getElementById("pdf-modal").classList.add("hidden");
+}
+
+async function downloadPdf() {
+    const inclMeta = document.getElementById("pdf-include-meta").checked;
+    const inclData = document.getElementById("pdf-include-data").checked;
+
+    // Build a temporary container to render into PDF
+    const container = document.createElement("div");
+    container.style.padding = "24px";
+    container.style.fontFamily = "Inter, sans-serif";
+    container.style.color = "#1e293b";
+    container.style.maxWidth = "800px";
+
+    // Title
+    const h1 = document.createElement("h1");
+    h1.textContent = "Denodo Flick — Recomendación";
+    h1.style.fontSize = "20px";
+    h1.style.marginBottom = "8px";
+    container.appendChild(h1);
+
+    if (window._lastResultData?.scenario) {
+        const sub = document.createElement("p");
+        sub.textContent = window._lastResultData.scenario;
+        sub.style.color = "#64748b";
+        sub.style.marginBottom = "16px";
+        container.appendChild(sub);
+    }
+
+    // Decision
+    const decDiv = document.createElement("div");
+    decDiv.innerHTML = renderMarkdown(window._lastResultData?.decision || "Sin recomendación.");
+    decDiv.style.lineHeight = "1.6";
+    container.appendChild(decDiv);
+
+    // Optional metadata
+    if (inclMeta && window._lastResultData?.phase1_metadata?.length) {
+        const h2 = document.createElement("h2");
+        h2.textContent = "Detalle de metadatos";
+        h2.style.fontSize = "16px";
+        h2.style.marginTop = "24px";
+        container.appendChild(h2);
+        window._lastResultData.phase1_metadata.forEach(item => {
+            const q = document.createElement("p");
+            q.innerHTML = `<strong>${item.question}</strong>`;
+            container.appendChild(q);
+            const a = document.createElement("div");
+            a.innerHTML = renderMarkdown(item.answer || item.error || "Sin respuesta");
+            a.style.marginBottom = "12px";
+            container.appendChild(a);
+        });
+    }
+
+    // Optional data details
+    if (inclData && window._lastResultData?.phase2_data?.length) {
+        const h2 = document.createElement("h2");
+        h2.textContent = "Detalle de datos extraídos";
+        h2.style.fontSize = "16px";
+        h2.style.marginTop = "24px";
+        container.appendChild(h2);
+        window._lastResultData.phase2_data.forEach(item => {
+            const q = document.createElement("p");
+            q.innerHTML = `<strong>${item.question}</strong>`;
+            container.appendChild(q);
+            const a = document.createElement("div");
+            a.innerHTML = renderMarkdown(item.answer || item.error || "Sin respuesta");
+            a.style.marginBottom = "12px";
+            container.appendChild(a);
+        });
+    }
+
+    container.style.position = "fixed";
+    container.style.left = "-9999px";
+    container.style.top = "0";
+    container.style.width = "800px";
+    container.style.background = "#fff";
+    document.body.appendChild(container);
+
+    // Allow the browser to paint the container before capturing
+    await new Promise(r => setTimeout(r, 300));
+
+    const opt = {
+        margin: [10, 10, 10, 10],
+        filename: "denodo-flick-recomendacion.pdf",
+        image: { type: "jpeg", quality: 0.98 },
+        html2canvas: { scale: 2, useCORS: true, logging: false, windowWidth: 800 },
+        jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
+    };
+
+    html2pdf().set(opt).from(container).save().then(() => {
+        document.body.removeChild(container);
+        closePdfModal();
+    }).catch(() => {
+        if (container.parentNode) document.body.removeChild(container);
+        closePdfModal();
+    });
+}
+
+
+// ═══════════════════════════════════════════════════════════════
+// Email
+// ═══════════════════════════════════════════════════════════════
+
+function openEmailModal() {
+    document.getElementById("email-modal").classList.remove("hidden");
+    document.getElementById("email-status").textContent = "";
+    document.getElementById("email-input").value = "";
+}
+function closeEmailModal() {
+    document.getElementById("email-modal").classList.add("hidden");
+}
+
+async function sendEmail() {
+    const email = document.getElementById("email-input").value.trim();
+    if (!email || !email.includes("@")) {
+        document.getElementById("email-status").textContent = "Introduce un email válido.";
+        document.getElementById("email-status").className = "email-status error";
+        return;
+    }
+
+    const scenario = window._lastResultData?.scenario || "Recomendación";
+    const decision = window._lastResultData?.decision || "Sin recomendación.";
+
+    const statusEl = document.getElementById("email-status");
+    statusEl.textContent = "Enviando...";
+    statusEl.className = "email-status sending";
+
+    try {
+        const res = await fetch("/api/send-email", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email, scenario, decision }),
+        });
+        const data = await res.json();
+
+        if (data.status === "ok") {
+            statusEl.textContent = "✓ Email enviado correctamente.";
+            statusEl.className = "email-status success";
+            setTimeout(closeEmailModal, 1800);
+        } else if (data.status === "no_smtp") {
+            // Fallback: open user's email client via mailto
+            const subject = encodeURIComponent(`Denodo Flick — ${scenario}`);
+            const body = encodeURIComponent(`${scenario}\n\n${decision}\n\n— Generado por Denodo Flick`);
+            window.open(`mailto:${encodeURIComponent(email)}?subject=${subject}&body=${body}`, "_blank");
+            statusEl.textContent = "Se ha abierto tu cliente de correo.";
+            statusEl.className = "email-status success";
+            setTimeout(closeEmailModal, 2200);
+        } else {
+            statusEl.textContent = data.error || "Error al enviar.";
+            statusEl.className = "email-status error";
+        }
+    } catch (err) {
+        statusEl.textContent = "Error de conexión.";
+        statusEl.className = "email-status error";
+    }
+}
