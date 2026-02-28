@@ -4,19 +4,23 @@
    ════════════════════════════════════════════════════════════ */
 
 :root {
-    --primary: #2563eb;
-    --primary-dark: #1d4ed8;
-    --primary-light: #dbeafe;
-    --success: #16a34a;
-    --success-light: #dcfce7;
-    --warning: #f59e0b;
-    --danger: #dc2626;
-    --danger-light: #fee2e2;
-    --bg: #f8fafc;
-    --surface: #ffffff;
-    --text: #1e293b;
-    --text-muted: #64748b;
-    --border: #e2e8f0;
+    /* primary accent is a vibrant pink/magenta similar to screenshot buttons */
+    --primary: #ff3860;
+    --primary-dark: #e0245e;
+    --primary-light: #ffadbd;
+    --success: #20bf6b;
+    --success-light: #c1fba4;
+    --warning: #f5ab35;
+    --danger: #ff6b6b;
+    --danger-light: #ffb3b3;
+
+    /* dark theme base colors */
+    --bg: #0f1234; /* darker navy-like backdrop seen in screenshot */
+    --surface: #121229;
+    --text: #e0e0e0;
+    --text-muted: #a0a0b0;
+    --border: #2a2a3b;
+
     --radius: 12px;
     --shadow: 0 1px 3px rgba(0,0,0,0.1), 0 1px 2px rgba(0,0,0,0.06);
     --shadow-lg: 0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05);
@@ -39,10 +43,21 @@ body {
 /* ── Header ───────────────────────────────────────────────── */
 
 header {
-    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+    /* darker purple-to-pink gradient header like screenshot */
+    background: linear-gradient(135deg, #120136 0%, #c3073f 100%);
     color: white;
     padding: 2rem;
     text-align: center;
+}
+
+/* make primary buttons use the same vibrant gradient */
+.btn-primary {
+    background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+    color: white;
+}
+.btn-primary:hover {
+    /* slightly lighter shadow on hover */
+    background: linear-gradient(135deg, var(--primary-dark), var(--primary));
 }
 
 .header-content h1 {
@@ -307,12 +322,15 @@ textarea:focus, input[type="text"]:focus, select:focus {
     transition: all 0.2s;
 }
 
+/* primary buttons mimic header gradient with hot pink/purple tone */
 .btn-primary {
-    background: var(--primary);
+    background: linear-gradient(135deg, var(--primary), var(--primary-dark));
     color: white;
 }
 
-.btn-primary:hover { background: var(--primary-dark); }
+.btn-primary:hover {
+    background: linear-gradient(135deg, var(--primary-dark), var(--primary));
+}
 .btn-primary:disabled {
     opacity: 0.5;
     cursor: not-allowed;
@@ -325,7 +343,11 @@ textarea:focus, input[type="text"]:focus, select:focus {
     margin-left: 0.5rem;
 }
 
-.btn-secondary:hover { border-color: var(--text-muted); }
+.btn-secondary:hover {
+    border-color: var(--text-muted);
+    background: #1f1f2e;
+    color: var(--text);
+}
 
 /* ── Preview Section ───────────────────────────────────────── */
 
