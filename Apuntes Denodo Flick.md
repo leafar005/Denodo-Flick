@@ -62,7 +62,6 @@ Combinando los resultados de ambas fases, el sistema genera una **recomendación
 | requirements.txt | Dependencias Python: `fastapi`, `uvicorn`, `httpx` (cliente HTTP async), `jinja2` (templates), `python-dotenv`, `pydantic` (validación). |
 | README.md | Documentación del proyecto con instrucciones de instalación y arquitectura. |
 | LICENSE | Licencia MIT. |
-| `apuntes denodo.txt` | Notas internas sobre configuración de Denodo. |
 
 ### 4.2. Directorio app — Backend
 
