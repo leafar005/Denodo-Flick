@@ -775,10 +775,14 @@ async function downloadPdf() {
     const inclData = document.getElementById("pdf-include-data").checked;
     closePdfModal();
 
-    // Build a temporary container with only the content we want
+    // Build a temporary container.
+    // IMPORTANT: must be on-screen (left:0,top:0) for html2canvas to render it.
+    // z-index:-1 keeps it behind the page so the user doesn't see it.
     const wrapper = document.createElement("div");
-    wrapper.style.cssText = "position:absolute;left:-9999px;top:0;width:700px;background:#fff;color:#1e293b;font-family:Inter,system-ui,sans-serif;padding:20px 24px;line-height:1.7;";
+    wrapper.style.cssText = "position:fixed;left:0;top:0;width:700px;background:#fff;color:#1e293b;font-family:Inter,system-ui,sans-serif;padding:20px 24px;line-height:1.7;z-index:-1;pointer-events:none;overflow:visible;";
     document.body.appendChild(wrapper);
+
+    const data = window._lastResultData;
 
     // ── Title
     const title = document.createElement("h1");
@@ -787,49 +791,74 @@ async function downloadPdf() {
     wrapper.appendChild(title);
 
     const subtitle = document.createElement("p");
-    subtitle.textContent = "Generado el " + new Date().toLocaleString("es-ES");
+    const scenarioName = data ? data.scenario : "";
+    subtitle.textContent = (scenarioName ? scenarioName + " · " : "") + "Generado el " + new Date().toLocaleString("es-ES");
     subtitle.style.cssText = "font-size:12px;color:#64748b;margin:0 0 18px 0;";
     wrapper.appendChild(subtitle);
 
-    // ── Charts (if visible)
+    // ── Charts as <img> (canvas.cloneNode does NOT preserve drawn content)
     const chartsOrig = document.getElementById("charts-section");
     if (chartsOrig && !chartsOrig.classList.contains("hidden")) {
-        const chartsClone = chartsOrig.cloneNode(true);
-        chartsClone.classList.remove("hidden");
-        chartsClone.style.cssText = "margin-bottom:18px;";
-        chartsClone.querySelectorAll("canvas").forEach(c => {
-            c.style.maxHeight = "260px";
-            c.style.pageBreakInside = "avoid";
+        const chartCards = chartsOrig.querySelectorAll(".chart-card");
+        chartCards.forEach(card => {
+            const cardWrapper = document.createElement("div");
+            cardWrapper.style.cssText = "margin-bottom:14px;page-break-inside:avoid;";
+
+            const titleEl = card.querySelector(".chart-title");
+            if (titleEl) {
+                const t = document.createElement("h3");
+                t.textContent = titleEl.textContent;
+                t.style.cssText = "font-size:14px;color:#1e293b;margin:0 0 6px 0;";
+                cardWrapper.appendChild(t);
+            }
+
+            const canvas = card.querySelector("canvas");
+            if (canvas) {
+                try {
+                    const img = document.createElement("img");
+                    img.src = canvas.toDataURL("image/png");
+                    img.style.cssText = "width:100%;max-height:250px;object-fit:contain;";
+                    cardWrapper.appendChild(img);
+                } catch { /* ignore tainted canvas */ }
+            }
+
+            wrapper.appendChild(cardWrapper);
         });
-        wrapper.appendChild(chartsClone);
     }
 
-    // ── Decision card
+    // ── Decision card (build from scratch to avoid CSS pseudo-element / overflow issues)
     const decisionOrig = document.getElementById("decision-card");
     if (decisionOrig) {
-        const decisionClone = decisionOrig.cloneNode(true);
-        decisionClone.style.cssText = "background:linear-gradient(135deg,#0f172a 0%,#1e3a5f 50%,#1e40af 100%);color:white;padding:20px 22px;border-radius:10px;margin-bottom:18px;page-break-inside:auto;overflow:visible;";
-        // Ensure all text nodes are white
-        decisionClone.querySelectorAll("*").forEach(el => {
+        const card = document.createElement("div");
+        card.style.cssText = "background:linear-gradient(135deg,#0f172a 0%,#1e3a5f 50%,#1e40af 100%);color:white;padding:20px 22px;border-radius:10px;margin-bottom:18px;overflow:visible;";
+
+        const h2 = document.createElement("h2");
+        h2.textContent = "📌 Recomendación Final";
+        h2.style.cssText = "color:white;font-size:18px;margin:0 0 12px 0;";
+        card.appendChild(h2);
+
+        const body = document.createElement("div");
+        // Copy the rendered HTML of the decision text
+        const origText = decisionOrig.querySelector("#decision-text, .decision-text");
+        body.innerHTML = origText ? origText.innerHTML : "";
+        body.style.cssText = "color:white;font-size:13px;line-height:1.8;white-space:pre-wrap;overflow:visible;";
+        // Force white on all inner elements
+        body.querySelectorAll("*").forEach(el => {
             el.style.color = "white";
-            el.style.pageBreakInside = "auto";
             el.style.overflow = "visible";
         });
-        // Fix tables inside decision
-        decisionClone.querySelectorAll("th").forEach(th => {
-            th.style.background = "rgba(255,255,255,0.15)";
+        // Style tables
+        body.querySelectorAll("table").forEach(tbl => {
+            tbl.style.cssText = "width:100%;border-collapse:collapse;margin:10px 0;";
         });
-        decisionClone.querySelectorAll("td, th").forEach(cell => {
-            cell.style.borderColor = "rgba(255,255,255,0.2)";
-            cell.style.padding = "6px 10px";
-            cell.style.fontSize = "12px";
+        body.querySelectorAll("th").forEach(th => {
+            th.style.cssText = "background:rgba(255,255,255,0.15);color:white;padding:6px 10px;font-size:12px;border:1px solid rgba(255,255,255,0.2);text-align:left;";
         });
-        decisionClone.querySelectorAll("table").forEach(tbl => {
-            tbl.style.width = "100%";
-            tbl.style.borderCollapse = "collapse";
-            tbl.style.pageBreakInside = "auto";
+        body.querySelectorAll("td").forEach(td => {
+            td.style.cssText = "color:white;padding:6px 10px;font-size:12px;border:1px solid rgba(255,255,255,0.2);";
         });
-        wrapper.appendChild(decisionClone);
+        card.appendChild(body);
+        wrapper.appendChild(card);
     }
 
     // ── Phase details (optional)
@@ -847,6 +876,9 @@ async function downloadPdf() {
         wrapper.appendChild(clone);
     }
 
+    // Wait two animation frames for layout to settle
+    await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+
     const opt = {
         margin: [8, 8, 8, 8],
         filename: "denodo-flick-recomendacion.pdf",
@@ -855,6 +887,7 @@ async function downloadPdf() {
             scale: 2,
             useCORS: true,
             backgroundColor: "#ffffff",
+            scrollX: 0,
             scrollY: 0,
             windowWidth: 700,
         },
@@ -868,6 +901,77 @@ async function downloadPdf() {
         wrapper.remove();
     }
 }
+
+// ═══════════════════════════════════════════════════════════════
+// Email
+// ═══════════════════════════════════════════════════════════════
+
+function openEmailModal() {
+    document.getElementById("email-status").textContent = "";
+    document.getElementById("email-status").className = "email-status";
+    document.getElementById("email-address").value = "";
+    document.getElementById("email-modal").classList.remove("hidden");
+    setTimeout(() => document.getElementById("email-address").focus(), 100);
+}
+
+function closeEmailModal() {
+    document.getElementById("email-modal").classList.add("hidden");
+}
+
+async function sendEmail() {
+    const email = document.getElementById("email-address").value.trim();
+    const status = document.getElementById("email-status");
+
+    if (!email || !email.includes("@")) {
+        status.textContent = "Introduce un correo válido.";
+        status.className = "email-status error";
+        return;
+    }
+
+    const data = window._lastResultData;
+    if (!data || !data.decision) {
+        status.textContent = "No hay recomendación para enviar.";
+        status.className = "email-status error";
+        return;
+    }
+
+    status.textContent = "Enviando...";
+    status.className = "email-status sending";
+
+    try {
+        const res = await fetch("/api/send-email", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                email: email,
+                scenario: data.scenario || "",
+                decision: data.decision || "",
+            }),
+        });
+        const result = await res.json();
+
+        if (result.status === "ok") {
+            status.textContent = "✓ Correo enviado correctamente.";
+            status.className = "email-status success";
+            setTimeout(closeEmailModal, 1500);
+        } else if (result.status === "no_smtp") {
+            // SMTP not configured — fallback to mailto:
+            const subject = encodeURIComponent("Denodo Flick — " + (data.scenario || "Recomendación"));
+            const body = encodeURIComponent(data.decision);
+            window.open(`mailto:${email}?subject=${subject}&body=${body}`, "_blank");
+            status.textContent = "Se abrió tu cliente de correo.";
+            status.className = "email-status success";
+            setTimeout(closeEmailModal, 1500);
+        } else {
+            status.textContent = "Error: " + (result.error || "No se pudo enviar.");
+            status.className = "email-status error";
+        }
+    } catch (err) {
+        status.textContent = "Error de conexión: " + err.message;
+        status.className = "email-status error";
+    }
+}
+
 
 function _stylePdfPhaseDetail(detail) {
     detail.style.cssText = "margin-bottom:14px;border:1px solid #d1d5db;border-radius:8px;padding:12px 16px;page-break-inside:auto;overflow:visible;";

@@ -210,6 +210,23 @@
                         <button id="btn-download-pdf" class="btn-action" onclick="openPdfModal()" title="Descargar PDF">
                             📄 Descargar PDF
                         </button>
+                        <button id="btn-send-email" class="btn-action" onclick="openEmailModal()" title="Enviar por correo">
+                            ✉️ Enviar por correo
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Modal Email -->
+            <div id="email-modal" class="modal-overlay hidden">
+                <div class="modal">
+                    <h3>✉️ Enviar recomendación por correo</h3>
+                    <p class="modal-desc">Introduce la dirección de correo electrónico:</p>
+                    <input type="email" id="email-address" class="email-input" placeholder="ejemplo@correo.com">
+                    <span id="email-status" class="email-status"></span>
+                    <div class="modal-actions">
+                        <button class="btn-primary" onclick="sendEmail()">Enviar</button>
+                        <button class="btn-secondary" onclick="closeEmailModal()">Cancelar</button>
                     </div>
                 </div>
             </div>
