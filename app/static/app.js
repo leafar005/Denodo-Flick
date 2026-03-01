@@ -774,132 +774,108 @@ async function downloadPdf() {
     const inclMeta = document.getElementById("pdf-include-meta").checked;
     const inclData = document.getElementById("pdf-include-data").checked;
     closePdfModal();
-
-    // Build a temporary container.
-    // IMPORTANT: must be on-screen (left:0,top:0) for html2canvas to render it.
-    // z-index:-1 keeps it behind the page so the user doesn't see it.
-    const wrapper = document.createElement("div");
-    wrapper.style.cssText = "position:fixed;left:0;top:0;width:700px;background:#fff;color:#1e293b;font-family:Inter,system-ui,sans-serif;padding:20px 24px;line-height:1.7;z-index:-1;pointer-events:none;overflow:visible;";
-    document.body.appendChild(wrapper);
-
     const data = window._lastResultData;
-
-    // ── Title
-    const title = document.createElement("h1");
-    title.textContent = "\uD83C\uDFAF Denodo Flick — Recomendación";
-    title.style.cssText = "font-size:22px;margin:0 0 6px 0;color:#1e293b;";
-    wrapper.appendChild(title);
-
-    const subtitle = document.createElement("p");
-    const scenarioName = data ? data.scenario : "";
-    subtitle.textContent = (scenarioName ? scenarioName + " · " : "") + "Generado el " + new Date().toLocaleString("es-ES");
-    subtitle.style.cssText = "font-size:12px;color:#64748b;margin:0 0 18px 0;";
-    wrapper.appendChild(subtitle);
-
-    // ── Charts as <img> (canvas.cloneNode does NOT preserve drawn content)
+    if (!data) return;
+    // 1. Abrimos una nueva pestaña en blanco para el documento
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) {
+        alert("Por favor, permite las ventanas emergentes (pop-ups) para generar el PDF.");
+        return;
+    }
+    // 2. Construimos una plantilla HTML base con CSS nativo que se vea impoluta impresa
+    let html = `
+    <!DOCTYPE html>
+    <html lang="es">
+    <head>
+        <meta charset="UTF-8">
+        <title>Recomendación - Denodo Flick</title>
+        <style>
+            body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #1e293b; line-height: 1.6; padding: 30px; max-width: 800px; margin: 0 auto; }
+            h1 { color: #0f172a; border-bottom: 2px solid #e2e8f0; padding-bottom: 12px; margin-bottom: 5px; font-size: 24px; }
+            h2 { color: #2563eb; margin-top: 35px; font-size: 18px; }
+            h3 { color: #334155; font-size: 15px; margin-top: 25px; margin-bottom: 10px; }
+            .date { color: #64748b; font-size: 13px; margin-bottom: 30px; }
+            .decision-box { background-color: #f8fafc; border: 1px solid #cbd5e1; border-left: 4px solid #3b82f6; border-radius: 4px; padding: 20px 25px; margin-bottom: 30px; page-break-inside: avoid; font-size: 14px; }
+            .qa-item { margin-bottom: 18px; page-break-inside: avoid; }
+            .qa-q { font-weight: 600; color: #0f172a; margin-bottom: 6px; font-size: 14px; }
+            .qa-a { color: #334155; margin-left: 0; font-size: 13px; background: #f1f5f9; padding: 12px 15px; border-radius: 6px; border: 1px solid #e2e8f0; }
+            .chart-img { max-width: 100%; height: auto; max-height: 280px; margin-bottom: 20px; display: block; margin-left: auto; margin-right: auto; }
+            .chart-container { page-break-inside: avoid; margin-bottom: 35px; text-align: center; }
+            table { width: 100%; border-collapse: collapse; margin-top: 15px; margin-bottom: 15px; font-size: 12px; }
+            th, td { border: 1px solid #cbd5e1; padding: 8px 10px; text-align: left; }
+            th { background-color: #e2e8f0; color: #0f172a; font-weight: 600; }
+            @media print {
+                body { padding: 0; max-width: 100%; }
+                .no-print { display: none; }
+            }
+        </style>
+    </head>
+    <body>
+        <h1>🎯 Denodo Flick — Recomendación</h1>
+        <div class="date">${(data.scenario ? data.scenario + ' · ' : '') + "Generado el " + new Date().toLocaleString("es-ES")}</div>
+        
+        <h2>📌 Recomendación Final</h2>
+        <div class="decision-box">
+            ${renderMarkdown(data.decision || "No se pudo generar una recomendación.")}
+        </div>
+    `;
+    // 3. Volcar los Canvas de Chart.js como imágenes estáticas en base64 para que el navegador sí sepa cómo imprimirlas
     const chartsOrig = document.getElementById("charts-section");
     if (chartsOrig && !chartsOrig.classList.contains("hidden")) {
+        html += `<h2>📊 Estadísticas visuales</h2>`;
         const chartCards = chartsOrig.querySelectorAll(".chart-card");
         chartCards.forEach(card => {
-            const cardWrapper = document.createElement("div");
-            cardWrapper.style.cssText = "margin-bottom:14px;page-break-inside:avoid;";
-
             const titleEl = card.querySelector(".chart-title");
-            if (titleEl) {
-                const t = document.createElement("h3");
-                t.textContent = titleEl.textContent;
-                t.style.cssText = "font-size:14px;color:#1e293b;margin:0 0 6px 0;";
-                cardWrapper.appendChild(t);
-            }
-
             const canvas = card.querySelector("canvas");
-            if (canvas) {
+            if (titleEl && canvas) {
                 try {
-                    const img = document.createElement("img");
-                    img.src = canvas.toDataURL("image/png");
-                    img.style.cssText = "width:100%;max-height:250px;object-fit:contain;";
-                    cardWrapper.appendChild(img);
-                } catch { /* ignore tainted canvas */ }
+                    const imgData = canvas.toDataURL("image/png");
+                    html += `
+                    <div class="chart-container">
+                        <h3>${titleEl.textContent}</h3>
+                        <img src="${imgData}" class="chart-img" />
+                    </div>`;
+                } catch(e) {}
             }
-
-            wrapper.appendChild(cardWrapper);
         });
     }
-
-    // ── Decision card (build from scratch to avoid CSS pseudo-element / overflow issues)
-    const decisionOrig = document.getElementById("decision-card");
-    if (decisionOrig) {
-        const card = document.createElement("div");
-        card.style.cssText = "background:linear-gradient(135deg,#0f172a 0%,#1e3a5f 50%,#1e40af 100%);color:white;padding:20px 22px;border-radius:10px;margin-bottom:18px;overflow:visible;";
-
-        const h2 = document.createElement("h2");
-        h2.textContent = "📌 Recomendación Final";
-        h2.style.cssText = "color:white;font-size:18px;margin:0 0 12px 0;";
-        card.appendChild(h2);
-
-        const body = document.createElement("div");
-        // Copy the rendered HTML of the decision text
-        const origText = decisionOrig.querySelector("#decision-text, .decision-text");
-        body.innerHTML = origText ? origText.innerHTML : "";
-        body.style.cssText = "color:white;font-size:13px;line-height:1.8;white-space:pre-wrap;overflow:visible;";
-        // Force white on all inner elements
-        body.querySelectorAll("*").forEach(el => {
-            el.style.color = "white";
-            el.style.overflow = "visible";
+    // 4. Agregar si los pidió, las preguntas de Metadatos
+    if (inclMeta && data.phase1_metadata && data.phase1_metadata.length > 0) {
+        html += `<h2>📋 1. Análisis de metadatos</h2>`;
+        data.phase1_metadata.forEach(item => {
+            html += `
+            <div class="qa-item">
+                <div class="qa-q">❓ ${item.question}</div>
+                <div class="qa-a">${item.error ? "Error: " + item.error : renderMarkdown(item.answer || "Sin respuesta")}</div>
+            </div>`;
         });
-        // Style tables
-        body.querySelectorAll("table").forEach(tbl => {
-            tbl.style.cssText = "width:100%;border-collapse:collapse;margin:10px 0;";
+    }
+    // 5. Agregar si los pidió, los Datos Puros
+    if (inclData && data.phase2_data && data.phase2_data.length > 0) {
+        html += `<h2>📊 2. Datos extraídos</h2>`;
+        data.phase2_data.forEach(item => {
+            html += `
+            <div class="qa-item">
+                <div class="qa-q">❓ ${item.question}</div>
+                <div class="qa-a">${item.error ? "Error: " + item.error : renderMarkdown(item.answer || "Sin respuesta")}</div>
+            </div>`;
         });
-        body.querySelectorAll("th").forEach(th => {
-            th.style.cssText = "background:rgba(255,255,255,0.15);color:white;padding:6px 10px;font-size:12px;border:1px solid rgba(255,255,255,0.2);text-align:left;";
-        });
-        body.querySelectorAll("td").forEach(td => {
-            td.style.cssText = "color:white;padding:6px 10px;font-size:12px;border:1px solid rgba(255,255,255,0.2);";
-        });
-        card.appendChild(body);
-        wrapper.appendChild(card);
     }
-
-    // ── Phase details (optional)
-    const phaseDetails = document.querySelectorAll("#results-content details.phase-details");
-    if (inclMeta && phaseDetails[0]) {
-        const clone = phaseDetails[0].cloneNode(true);
-        clone.setAttribute("open", "");
-        _stylePdfPhaseDetail(clone);
-        wrapper.appendChild(clone);
-    }
-    if (inclData && phaseDetails[1]) {
-        const clone = phaseDetails[1].cloneNode(true);
-        clone.setAttribute("open", "");
-        _stylePdfPhaseDetail(clone);
-        wrapper.appendChild(clone);
-    }
-
-    // Wait two animation frames for layout to settle
-    await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
-
-    const opt = {
-        margin: [8, 8, 8, 8],
-        filename: "denodo-flick-recomendacion.pdf",
-        image: { type: "jpeg", quality: 0.95 },
-        html2canvas: {
-            scale: 2,
-            useCORS: true,
-            backgroundColor: "#ffffff",
-            scrollX: 0,
-            scrollY: 0,
-            windowWidth: 700,
-        },
-        jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
-        pagebreak: { mode: ["avoid-all", "css", "legacy"], avoid: ["tr", "li", "h2", "h3"] },
-    };
-
-    try {
-        await html2pdf().set(opt).from(wrapper).save();
-    } finally {
-        wrapper.remove();
-    }
+    // 6. Añadir el auto-disparador, cargar página e inicializar impresión
+    html += `
+        <script>
+            // Automatically print once loaded
+            window.onload = function() {
+                setTimeout(function() {
+                    window.print();
+                }, 500);
+            };
+        <\/script>
+    </body>
+    </html>`;
+    printWindow.document.open();
+    printWindow.document.write(html);
+    printWindow.document.close();
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -963,35 +939,3 @@ async function sendEmail() {
         status.className = "email-status error";
     }
 }
-
-
-function _stylePdfPhaseDetail(detail) {
-    detail.style.cssText = "margin-bottom:14px;border:1px solid #d1d5db;border-radius:8px;padding:12px 16px;page-break-inside:auto;overflow:visible;";
-    const summary = detail.querySelector("summary");
-    if (summary) summary.style.cssText = "font-weight:700;font-size:14px;color:#1e293b;margin-bottom:8px;cursor:default;";
-    detail.querySelectorAll(".result-box, .markdown-body").forEach(el => {
-        el.style.color = "#1e293b";
-        el.style.overflow = "visible";
-        el.style.maxHeight = "none";
-    });
-    detail.querySelectorAll("table").forEach(tbl => {
-        tbl.style.width = "100%";
-        tbl.style.borderCollapse = "collapse";
-        tbl.style.pageBreakInside = "auto";
-    });
-    detail.querySelectorAll("th").forEach(th => {
-        th.style.background = "#f1f5f9";
-        th.style.color = "#1e293b";
-        th.style.padding = "6px 10px";
-        th.style.fontSize = "11px";
-    });
-    detail.querySelectorAll("td").forEach(td => {
-        td.style.padding = "5px 10px";
-        td.style.fontSize = "11px";
-        td.style.color = "#1e293b";
-        td.style.borderBottom = "1px solid #e2e8f0";
-    });
-}
-
-
-
