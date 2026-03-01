@@ -13,8 +13,11 @@ from fastapi.responses import HTMLResponse, StreamingResponse
 from pydantic import BaseModel
 from app.decision_engine import run_decision_pipeline, run_decision_pipeline_stream, SCENARIOS
 from app.denodo_client import check_health, answer_metadata_question, answer_data_question, get_metadata
+from dotenv import load_dotenv
 import os
 import json
+
+load_dotenv()
 
 app = FastAPI(
     title="Denodo Flick - Denodo Decision Tool",
@@ -217,7 +220,7 @@ class EmailRequest(BaseModel):
 # ── Email endpoint ───────────────────────────────────────────
 
 @app.post("/api/send-email")
-async def send_email(req: EmailRequest):
+def send_email(req: EmailRequest):
     """Envía la recomendación por correo usando SMTP configurado en .env."""
     import smtplib
     from email.mime.text import MIMEText
@@ -230,7 +233,7 @@ async def send_email(req: EmailRequest):
     smtp_from = os.getenv("SMTP_FROM", smtp_user)
 
     if not smtp_host or not smtp_user:
-        return {"status": "no_smtp", "error": "SMTP no configurado. Se abrirá tu cliente de correo."}
+        return {"status": "error", "error": "SMTP no configurado en .env"}
 
     try:
         msg = MIMEMultipart("alternative")
@@ -253,7 +256,7 @@ async def send_email(req: EmailRequest):
         """
         msg.attach(MIMEText(html_body, "html", "utf-8"))
 
-        with smtplib.SMTP(smtp_host, smtp_port) as server:
+        with smtplib.SMTP(smtp_host, smtp_port, timeout=15) as server:
             server.starttls()
             server.login(smtp_user, smtp_pass)
             server.sendmail(smtp_from, req.email, msg.as_string())

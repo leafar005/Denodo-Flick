@@ -954,14 +954,6 @@ async function sendEmail() {
             status.textContent = "✓ Correo enviado correctamente.";
             status.className = "email-status success";
             setTimeout(closeEmailModal, 1500);
-        } else if (result.status === "no_smtp") {
-            // SMTP not configured — fallback to mailto:
-            const subject = encodeURIComponent("Denodo Flick — " + (data.scenario || "Recomendación"));
-            const body = encodeURIComponent(data.decision);
-            window.open(`mailto:${email}?subject=${subject}&body=${body}`, "_blank");
-            status.textContent = "Se abrió tu cliente de correo.";
-            status.className = "email-status success";
-            setTimeout(closeEmailModal, 1500);
         } else {
             status.textContent = "Error: " + (result.error || "No se pudo enviar.");
             status.className = "email-status error";
