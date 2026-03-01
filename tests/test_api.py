@@ -1,6 +1,6 @@
 """
 Tests de integración para la API FastAPI (main.py).
-Verifica los endpoints REST de DecisionLens.
+Verifica los endpoints REST de Denodo Flick.
 """
 
 import pytest
@@ -26,7 +26,7 @@ class TestGetEndpoints:
             res = await client.get("/")
             assert res.status_code == 200
             assert "text/html" in res.headers["content-type"]
-            assert "DecisionLens" in res.text
+            assert "Denodo Flick" in res.text
 
     @pytest.mark.asyncio
     @patch("app.main.check_health")

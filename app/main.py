@@ -50,8 +50,7 @@ class FreeQuestionRequest(BaseModel):
 @app.get("/", response_class=HTMLResponse)
 async def home(request: Request):
     """Página principal con los escenarios de decisión."""
-    return templates.TemplateResponse("index.html", {
-        "request": request,
+    return templates.TemplateResponse(request, "index.html", context={
         "scenarios": SCENARIOS,
     })
 

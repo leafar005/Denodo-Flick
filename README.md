@@ -138,7 +138,7 @@ python -m pytest tests/test_decision_engine.py -v
 ## Estructura del proyecto
 
 ```
-Denodo-Cinema/
+Denodo-Flick/
 ├── app/
 │   ├── __init__.py
 │   ├── main.py              # API FastAPI + endpoints REST

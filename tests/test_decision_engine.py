@@ -46,7 +46,7 @@ class TestBuildMetadataPrefix:
         ctx = "- La tabla admin.netflix contiene columnas: title, rating"
         result = _build_metadata_prefix(ctx, use_views="admin.netflix")
         assert "admin.netflix" in result
-        assert "NO consultes" in result
+        assert "NO hagas JOIN" in result
 
 
 # ═══════════════════════════════════════════════════════════════
