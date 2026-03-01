@@ -62,6 +62,18 @@
 
     function _hideGameContainers() {
         _restoreSpinner();
+        // Reset pong-field inline positioning
+        const pf = document.getElementById("pong-field");
+        if (pf) {
+            pf.style.position = "";
+            pf.style.top = "";
+            pf.style.left = "";
+            pf.style.right = "";
+            pf.style.bottom = "";
+            pf.style.flex = "";
+            pf.style.width = "";
+            pf.style.height = "";
+        }
         const ids = ["pong-container", "pacman-container", "game-exit-btn"];
         ids.forEach(id => {
             const el = document.getElementById(id);
@@ -128,9 +140,11 @@
         document.getElementById("pong-container").classList.remove("hidden");
         document.getElementById("game-exit-btn").classList.remove("hidden");
 
-        // ── Grab the actual loading spinner and use it as the ball ──
+        // ── Capture spinner screen position BEFORE moving it ──
         spinnerEl = document.querySelector("#loading-inner .spinner");
+        let spinnerRect = null;
         if (spinnerEl) {
+            spinnerRect = spinnerEl.getBoundingClientRect();
             spinnerOrigParent = spinnerEl.parentNode;
             spinnerOrigNext = spinnerEl.nextSibling;
             const field = document.getElementById("pong-field");
@@ -138,10 +152,40 @@
             spinnerEl.classList.add("pong-active");
         }
 
-        // Measure the field after display
+        // ── Position field between header (blue) and footer (white) ──
         const field = document.getElementById("pong-field");
+        const headerBottom = document.querySelector("header").getBoundingClientRect().bottom;
+        const footerEl = document.querySelector("footer");
+        const footerRect = footerEl ? footerEl.getBoundingClientRect() : null;
+        const bottomBound = (footerRect && footerRect.top < window.innerHeight)
+            ? footerRect.top
+            : window.innerHeight;
+
+        field.style.position = "fixed";
+        field.style.top = headerBottom + "px";
+        field.style.left = "0";
+        field.style.right = "0";
+        field.style.bottom = (window.innerHeight - bottomBound) + "px";
+        field.style.flex = "none";
+        field.style.width = "auto";
+        field.style.height = "auto";
+
+        // Measure the field after positioning
         const fieldW = field.clientWidth;
         const fieldH = field.clientHeight;
+        const fieldRect2 = field.getBoundingClientRect();
+
+        // ── Ball starts exactly where the spinner was ──
+        let ballX, ballY;
+        if (spinnerRect) {
+            ballX = spinnerRect.left - fieldRect2.left;
+            ballY = spinnerRect.top - fieldRect2.top;
+            ballX = Math.max(0, Math.min(fieldW - PONG_BALL_SIZE, ballX));
+            ballY = Math.max(0, Math.min(fieldH - PONG_BALL_SIZE, ballY));
+        } else {
+            ballX = (fieldW - PONG_BALL_SIZE) / 2;
+            ballY = (fieldH - PONG_BALL_SIZE) / 2;
+        }
 
         pUpP1 = pDownP1 = pUpP2 = pDownP2 = false;
 
@@ -150,8 +194,8 @@
             score2: 0,
             p1Y: (fieldH - PONG_PADDLE_H) / 2,
             p2Y: (fieldH - PONG_PADDLE_H) / 2,
-            ballX: (fieldW - PONG_BALL_SIZE) / 2,
-            ballY: (fieldH - PONG_BALL_SIZE) / 2,
+            ballX: ballX,
+            ballY: ballY,
             dx: PONG_BALL_SPEED,
             dy: PONG_BALL_SPEED * 0.5,
             speed: PONG_BALL_SPEED,
