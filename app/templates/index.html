@@ -138,29 +138,32 @@
         <!-- Resultados del pipeline -->
         <section id="results-section" class="hidden">
             <div id="loading" class="hidden">
-                <div class="spinner"></div>
-                <p class="loading-text">Analizando datos con Denodo AI SDK...</p>
+                <!-- Original loading content (hidden when a game is active) -->
+                <div id="loading-inner">
+                    <div class="spinner"></div>
+                    <p class="loading-text">Analizando datos con Denodo AI SDK...</p>
 
-                <div class="loading-phases">
-                    <div id="phase1-status" class="phase-indicator">
-                        <span class="phase-dot"></span>
-                        <span class="phase-text">Fase 1: Explorando metadatos...</span>
+                    <div class="loading-phases">
+                        <div id="phase1-status" class="phase-indicator">
+                            <span class="phase-dot"></span>
+                            <span class="phase-text">Fase 1: Explorando metadatos...</span>
+                        </div>
+                        <div id="phase2-status" class="phase-indicator">
+                            <span class="phase-dot"></span>
+                            <span class="phase-text">Fase 2: Consultando datos...</span>
+                        </div>
+                        <div id="phase3-status" class="phase-indicator">
+                            <span class="phase-dot"></span>
+                            <span class="phase-text">Fase 3: Generando recomendación...</span>
+                        </div>
                     </div>
-                    <div id="phase2-status" class="phase-indicator">
-                        <span class="phase-dot"></span>
-                        <span class="phase-text">Fase 2: Consultando datos...</span>
-                    </div>
-                    <div id="phase3-status" class="phase-indicator">
-                        <span class="phase-dot"></span>
-                        <span class="phase-text">Fase 3: Generando recomendación...</span>
-                    </div>
+
+                    <p id="auto-view-warning" class="auto-view-warning hidden">
+                        🤖 Modo automático activado — el sistema debe resolver qué vista usar en cada consulta, lo que añade tiempo extra.
+                    </p>
+
+                    <button id="btn-cancel-query" class="btn-cancel">✕ Cancelar consulta</button>
                 </div>
-
-                <p id="auto-view-warning" class="auto-view-warning hidden">
-                    🤖 Modo automático activado — el sistema debe resolver qué vista usar en cada consulta, lo que añade tiempo extra.
-                </p>
-
-                <button id="btn-cancel-query" class="btn-cancel">✕ Cancelar consulta</button>
             </div>
 
             <div id="results-content" class="hidden">
@@ -203,9 +206,6 @@
                         <button id="btn-download-pdf" class="btn-action" onclick="openPdfModal()" title="Descargar PDF">
                             📄 Descargar PDF
                         </button>
-                        <button id="btn-send-email" class="btn-action" onclick="openEmailModal()" title="Enviar por email">
-                            ✉️ Enviar por email
-                        </button>
                     </div>
                 </div>
             </div>
@@ -223,20 +223,6 @@
                     </div>
                 </div>
             </div>
-
-            <!-- Modal Email -->
-            <div id="email-modal" class="modal-overlay hidden">
-                <div class="modal">
-                    <h3>✉️ Enviar recomendación por email</h3>
-                    <p class="modal-desc">Introduce tu correo electrónico:</p>
-                    <input type="email" id="email-input" class="email-input" placeholder="tu@email.com">
-                    <span id="email-status" class="email-status"></span>
-                    <div class="modal-actions">
-                        <button class="btn-primary" onclick="sendEmail()">Enviar</button>
-                        <button class="btn-secondary" onclick="closeEmailModal()">Cancelar</button>
-                    </div>
-                </div>
-            </div>
         </section>
     </main>
 
@@ -245,5 +231,39 @@
     </footer>
 
     <script src="/static/app.js?v=3"></script>
+    <script src="/static/inline-games.js?v=1"></script>
+
+    <!-- Floating game menu (visible during loading) -->
+    <div id="game-menu-panel" class="hidden">
+        <p>¿Cansado de esperar?</p>
+        <div class="game-menu-btns">
+            <button id="game-btn-pong">🏓 Pong</button>
+            <button id="game-btn-pacman">👾 Pac-Man</button>
+        </div>
+    </div>
+
+    <!-- Pong (DOM-based, transparent overlay) -->
+    <div id="pong-container" class="hidden">
+        <div id="pong-score">0 - 0</div>
+        <p id="pong-instructions">Jugador 1: W/S | Jugador 2: Flechas</p>
+        <div id="pong-field">
+            <div id="pong-net"></div>
+            <div id="pong-paddle1" class="pong-paddle"></div>
+            <div id="pong-paddle2" class="pong-paddle"></div>
+            <!-- spinner is moved here dynamically as the ball -->
+            <div id="pong-countdown" class="hidden">3</div>
+        </div>
+    </div>
+
+    <!-- Pac-Man (Canvas, floating panel) -->
+    <div id="pacman-container" class="hidden">
+        <div id="pm-score-display">Puntuación: <span id="pm-score-val">0</span></div>
+        <canvas id="pm-canvas" width="320" height="272"></canvas>
+        <p id="pm-controls">Controles: Flechas de dirección</p>
+        <button id="pm-restart" class="hidden btn-primary">↻ Jugar de nuevo</button>
+    </div>
+
+    <!-- Universal exit game button -->
+    <button id="game-exit-btn" class="hidden">❌ Salir del juego</button>
 </body>
 </html>

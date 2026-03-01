@@ -1569,3 +1569,274 @@ footer {
 .email-status.error { color: #ef4444; }
 .email-status.success { color: #16a34a; }
 .email-status.sending { color: var(--text-muted); }
+
+
+/* ══════════════════════════════════════════════════════════════
+   Inline Games — Loading-screen mini-games
+   ══════════════════════════════════════════════════════════════ */
+
+/* ── Floating game menu panel ─────────────────────────────── */
+
+#game-menu-panel {
+    position: fixed;
+    bottom: 2rem;
+    right: 2rem;
+    z-index: 900;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1.25rem 1.5rem;
+    box-shadow: var(--shadow-lg);
+    text-align: center;
+    min-width: 220px;
+    animation: gameMenuSlideIn 0.4s ease-out;
+}
+
+@keyframes gameMenuSlideIn {
+    from { opacity: 0; transform: translateY(20px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+#game-menu-panel p {
+    font-weight: 700;
+    font-size: 0.95rem;
+    margin-bottom: 0.75rem;
+    color: var(--text);
+}
+
+.game-menu-btns {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.game-menu-btns button {
+    flex: 1;
+    padding: 0.55rem 0.75rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--surface);
+    color: var(--text);
+    cursor: pointer;
+    font-size: 0.88rem;
+    font-weight: 600;
+    transition: all var(--transition);
+    font-family: inherit;
+}
+
+.game-menu-btns button:hover {
+    border-color: var(--primary);
+    color: var(--primary);
+    background: var(--primary-light);
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-glow);
+}
+
+/* ── Universal exit game button ───────────────────────────── */
+
+#game-exit-btn {
+    position: fixed;
+    top: 1rem;
+    right: 1rem;
+    z-index: 1001;
+    background: rgba(0, 0, 0, 0.7);
+    color: white;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: var(--radius-sm);
+    padding: 0.45rem 0.9rem;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    transition: all var(--transition);
+    font-family: inherit;
+}
+
+#game-exit-btn:hover {
+    background: rgba(220, 38, 38, 0.85);
+    border-color: rgba(220, 38, 38, 0.6);
+    transform: scale(1.05);
+}
+
+/* ── PONG container (transparent overlay) ─────────────────── */
+
+#pong-container {
+    position: fixed;
+    inset: 0;
+    z-index: 800;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 1rem 2rem;
+    pointer-events: none;
+}
+
+#pong-score {
+    font-size: 2.8rem;
+    font-weight: 800;
+    font-family: 'Inter', monospace;
+    color: white;
+    letter-spacing: 0.08em;
+    margin-bottom: 0.15rem;
+    background: rgba(0, 0, 0, 0.55);
+    padding: 0.15rem 1.2rem;
+    border-radius: 8px;
+    text-shadow: 0 0 10px var(--primary-glow);
+}
+
+#pong-instructions {
+    font-size: 0.85rem;
+    color: rgba(255, 255, 255, 0.9);
+    margin-bottom: 0.75rem;
+    background: rgba(0, 0, 0, 0.45);
+    padding: 0.2rem 0.8rem;
+    border-radius: 6px;
+}
+
+#pong-field {
+    position: relative;
+    width: 100%;
+    flex: 1;
+    background: transparent;
+    overflow: hidden;
+}
+
+#pong-net {
+    position: absolute;
+    left: calc(50% - 1px);
+    top: 0;
+    width: 2px;
+    height: 100%;
+    background: repeating-linear-gradient(
+        to bottom,
+        var(--primary-glow) 0px,
+        var(--primary-glow) 10px,
+        transparent 10px,
+        transparent 20px
+    );
+    pointer-events: none;
+}
+
+.pong-paddle {
+    position: absolute;
+    width: 10px;
+    height: 100px;
+    background: var(--primary);
+    border-radius: 5px;
+    top: 0;
+    will-change: transform;
+    box-shadow: 0 0 12px var(--primary-glow), 0 0 4px rgba(0, 0, 0, 0.5);
+}
+
+#pong-paddle1 { left: 10px; }
+#pong-paddle2 { right: 10px; }
+
+/* When the spinner is used as the Pong ball */
+.spinner.pong-active {
+    position: absolute;
+    left: 0;
+    top: 0;
+    margin: 0;
+    will-change: transform;
+    z-index: 5;
+    background: rgba(128, 128, 128, 0.08);
+    box-shadow: 0 0 18px 4px var(--primary-glow), 0 0 6px 1px rgba(255,255,255,0.25);
+}
+
+/* ── Pong countdown overlay ───────────────────────────────── */
+
+#pong-countdown {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.45);
+    z-index: 810;
+    font-size: 5rem;
+    font-weight: 800;
+    color: white;
+    text-shadow: 0 0 40px var(--primary);
+    border-radius: 0;
+    animation: countdownPulse 0.8s ease-in-out infinite;
+    pointer-events: none;
+}
+
+@keyframes countdownPulse {
+    0%, 100% { transform: scale(1); opacity: 1; }
+    50%      { transform: scale(1.08); opacity: 0.9; }
+}
+
+/* ── PAC-MAN container (floating panel) ───────────────────── */
+
+#pacman-container {
+    position: fixed;
+    bottom: 2rem;
+    left: 2rem;
+    z-index: 800;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: auto;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1rem;
+    box-shadow: var(--shadow-lg);
+    animation: gameMenuSlideIn 0.4s ease-out;
+}
+
+#pm-score-display {
+    font-size: 1.15rem;
+    font-weight: 700;
+    color: var(--text);
+    margin-bottom: 0.5rem;
+}
+
+#pm-score-val {
+    color: #ffff00;
+    text-shadow: 0 0 6px rgba(255, 255, 0, 0.4);
+}
+
+#pm-canvas {
+    background: #000;
+    border: 2px solid #1919a6;
+    border-radius: 8px;
+    box-shadow: 0 0 20px rgba(25, 25, 166, 0.3);
+    display: block;
+}
+
+#pm-controls {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    margin-top: 0.6rem;
+}
+
+#pm-restart {
+    margin-top: 0.75rem;
+    font-size: 0.95rem;
+}
+
+/* ── Responsive: game menu ────────────────────────────────── */
+
+@media (max-width: 640px) {
+    #game-menu-panel {
+        bottom: 1rem;
+        right: 1rem;
+        left: 1rem;
+        min-width: 0;
+    }
+    #pong-score {
+        font-size: 2rem;
+    }
+    #pacman-container {
+        bottom: 1rem;
+        left: 1rem;
+        right: 1rem;
+        padding: 0.75rem;
+    }
+    #pm-canvas {
+        max-width: 100%;
+        height: auto;
+    }
+}

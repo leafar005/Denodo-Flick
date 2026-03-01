@@ -59,6 +59,7 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     document.getElementById("btn-back").addEventListener("click", showScenarios);
+    document.getElementById("btn-new")?.addEventListener("click", goBack);
     document.getElementById("btn-cancel-query")?.addEventListener("click", cancelQuery);
 
 });
@@ -246,16 +247,17 @@ function showScenarios() {
     document.getElementById("loading").classList.add("hidden");
 }
 
-function goBack() {
-    hideAllSections();
-    document.getElementById("results-content").classList.add("hidden");
-    document.getElementById("loading").classList.add("hidden");
-    document.getElementById(_previousSection).classList.remove("hidden");
-}
-
 function showResults() {
     hideAllSections();
     document.getElementById("results-section").classList.remove("hidden");
+}
+
+function goBack() {
+    if (window.InlineGames) InlineGames.cleanup();
+    document.getElementById("loading").classList.add("hidden");
+    document.getElementById("results-content").classList.add("hidden");
+    document.getElementById("auto-view-warning").classList.add("hidden");
+    showScenarios();
 }
 
 async function showScenarioPreview(scenarioKey) {
@@ -402,6 +404,7 @@ function cancelQuery() {
         _activeAbortController.abort();
         _activeAbortController = null;
     }
+    if (window.InlineGames) InlineGames.cleanup();
     document.getElementById("loading").classList.add("hidden");
     document.getElementById("auto-view-warning").classList.add("hidden");
     hideAllSections();
@@ -419,6 +422,9 @@ async function runDecision(scenario, customQuestion = null, customMetaQs = null,
     showResults();
     document.getElementById("loading").classList.remove("hidden");
     document.getElementById("results-content").classList.add("hidden");
+
+    // Show inline-games menu while loading
+    if (window.InlineGames) InlineGames.showMenu();
 
     // Show/hide auto-view warning (solo para decisión personalizada)
     const autoWarning = document.getElementById("auto-view-warning");
@@ -522,11 +528,13 @@ async function runDecision(scenario, customQuestion = null, customMetaQs = null,
         // Show results
         if (finalData) {
             setTimeout(() => {
+                if (window.InlineGames) InlineGames.cleanup();
                 document.getElementById("loading").classList.add("hidden");
                 renderResults(finalData);
                 document.getElementById("results-content").classList.remove("hidden");
             }, 400);
         } else {
+            if (window.InlineGames) InlineGames.cleanup();
             document.getElementById("loading").classList.add("hidden");
             document.getElementById("results-content").classList.remove("hidden");
             document.getElementById("decision-text").innerHTML = "<p>No se recibieron resultados del servidor.</p>";
@@ -534,6 +542,7 @@ async function runDecision(scenario, customQuestion = null, customMetaQs = null,
 
     } catch (err) {
         if (err.name === "AbortError") return; // User cancelled — already handled
+        if (window.InlineGames) InlineGames.cleanup();
         document.getElementById("loading").classList.add("hidden");
         document.getElementById("results-content").classList.remove("hidden");
         document.getElementById("decision-text").innerHTML = `<p>Error: ${err.message}</p>`;
@@ -763,106 +772,127 @@ async function downloadPdf() {
     const inclData = document.getElementById("pdf-include-data").checked;
     closePdfModal();
 
-    const resultsContent = document.getElementById("results-content");
+    // Build a temporary container with only the content we want
+    const wrapper = document.createElement("div");
+    wrapper.style.cssText = "position:absolute;left:-9999px;top:0;width:700px;background:#fff;color:#1e293b;font-family:Inter,system-ui,sans-serif;padding:20px 24px;line-height:1.7;";
+    document.body.appendChild(wrapper);
 
-    // Elements we may temporarily hide
-    const phaseDetails = resultsContent.querySelectorAll("details.phase-details");
-    const actionsBar   = resultsContent.querySelector(".results-actions");
-    const errorsSection = document.getElementById("errors-section");
+    // ── Title
+    const title = document.createElement("h1");
+    title.textContent = "\uD83C\uDFAF Denodo Flick — Recomendación";
+    title.style.cssText = "font-size:22px;margin:0 0 6px 0;color:#1e293b;";
+    wrapper.appendChild(title);
 
-    // Store original states
-    const origActions = actionsBar ? actionsBar.style.display : "";
-    const origPhase0  = phaseDetails[0] ? phaseDetails[0].style.display : "";
-    const origPhase1  = phaseDetails[1] ? phaseDetails[1].style.display : "";
-    const origErrors  = errorsSection ? errorsSection.style.display : "";
+    const subtitle = document.createElement("p");
+    subtitle.textContent = "Generado el " + new Date().toLocaleString("es-ES");
+    subtitle.style.cssText = "font-size:12px;color:#64748b;margin:0 0 18px 0;";
+    wrapper.appendChild(subtitle);
 
-    // Hide buttons and optional sections
-    if (actionsBar) actionsBar.style.display = "none";
-    if (errorsSection) errorsSection.style.display = "none";
-    if (!inclMeta && phaseDetails[0]) phaseDetails[0].style.display = "none";
-    if (!inclData && phaseDetails[1]) phaseDetails[1].style.display = "none";
+    // ── Charts (if visible)
+    const chartsOrig = document.getElementById("charts-section");
+    if (chartsOrig && !chartsOrig.classList.contains("hidden")) {
+        const chartsClone = chartsOrig.cloneNode(true);
+        chartsClone.classList.remove("hidden");
+        chartsClone.style.cssText = "margin-bottom:18px;";
+        chartsClone.querySelectorAll("canvas").forEach(c => {
+            c.style.maxHeight = "260px";
+            c.style.pageBreakInside = "avoid";
+        });
+        wrapper.appendChild(chartsClone);
+    }
 
-    // Force open the <details> that we want to include so content is visible
-    if (inclMeta && phaseDetails[0]) phaseDetails[0].setAttribute("open", "");
-    if (inclData && phaseDetails[1]) phaseDetails[1].setAttribute("open", "");
+    // ── Decision card
+    const decisionOrig = document.getElementById("decision-card");
+    if (decisionOrig) {
+        const decisionClone = decisionOrig.cloneNode(true);
+        decisionClone.style.cssText = "background:linear-gradient(135deg,#0f172a 0%,#1e3a5f 50%,#1e40af 100%);color:white;padding:20px 22px;border-radius:10px;margin-bottom:18px;page-break-inside:auto;overflow:visible;";
+        // Ensure all text nodes are white
+        decisionClone.querySelectorAll("*").forEach(el => {
+            el.style.color = "white";
+            el.style.pageBreakInside = "auto";
+            el.style.overflow = "visible";
+        });
+        // Fix tables inside decision
+        decisionClone.querySelectorAll("th").forEach(th => {
+            th.style.background = "rgba(255,255,255,0.15)";
+        });
+        decisionClone.querySelectorAll("td, th").forEach(cell => {
+            cell.style.borderColor = "rgba(255,255,255,0.2)";
+            cell.style.padding = "6px 10px";
+            cell.style.fontSize = "12px";
+        });
+        decisionClone.querySelectorAll("table").forEach(tbl => {
+            tbl.style.width = "100%";
+            tbl.style.borderCollapse = "collapse";
+            tbl.style.pageBreakInside = "auto";
+        });
+        wrapper.appendChild(decisionClone);
+    }
+
+    // ── Phase details (optional)
+    const phaseDetails = document.querySelectorAll("#results-content details.phase-details");
+    if (inclMeta && phaseDetails[0]) {
+        const clone = phaseDetails[0].cloneNode(true);
+        clone.setAttribute("open", "");
+        _stylePdfPhaseDetail(clone);
+        wrapper.appendChild(clone);
+    }
+    if (inclData && phaseDetails[1]) {
+        const clone = phaseDetails[1].cloneNode(true);
+        clone.setAttribute("open", "");
+        _stylePdfPhaseDetail(clone);
+        wrapper.appendChild(clone);
+    }
 
     const opt = {
-        margin: [10, 10, 10, 10],
+        margin: [8, 8, 8, 8],
         filename: "denodo-flick-recomendacion.pdf",
-        image: { type: "jpeg", quality: 0.98 },
-        html2canvas: { scale: 2, useCORS: true, backgroundColor: "#ffffff" },
+        image: { type: "jpeg", quality: 0.95 },
+        html2canvas: {
+            scale: 2,
+            useCORS: true,
+            backgroundColor: "#ffffff",
+            scrollY: 0,
+            windowWidth: 700,
+        },
         jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
+        pagebreak: { mode: ["avoid-all", "css", "legacy"], avoid: ["tr", "li", "h2", "h3"] },
     };
 
     try {
-        await html2pdf().set(opt).from(resultsContent).save();
+        await html2pdf().set(opt).from(wrapper).save();
     } finally {
-        // Restore everything
-        if (actionsBar) actionsBar.style.display = origActions;
-        if (errorsSection) errorsSection.style.display = origErrors;
-        if (phaseDetails[0]) phaseDetails[0].style.display = origPhase0;
-        if (phaseDetails[1]) phaseDetails[1].style.display = origPhase1;
-        // Close details that were force-opened
-        if (inclMeta && phaseDetails[0]) phaseDetails[0].removeAttribute("open");
-        if (inclData && phaseDetails[1]) phaseDetails[1].removeAttribute("open");
+        wrapper.remove();
     }
 }
 
-
-// ═══════════════════════════════════════════════════════════════
-// Email
-// ═══════════════════════════════════════════════════════════════
-
-function openEmailModal() {
-    document.getElementById("email-modal").classList.remove("hidden");
-    document.getElementById("email-status").textContent = "";
-    document.getElementById("email-input").value = "";
+function _stylePdfPhaseDetail(detail) {
+    detail.style.cssText = "margin-bottom:14px;border:1px solid #d1d5db;border-radius:8px;padding:12px 16px;page-break-inside:auto;overflow:visible;";
+    const summary = detail.querySelector("summary");
+    if (summary) summary.style.cssText = "font-weight:700;font-size:14px;color:#1e293b;margin-bottom:8px;cursor:default;";
+    detail.querySelectorAll(".result-box, .markdown-body").forEach(el => {
+        el.style.color = "#1e293b";
+        el.style.overflow = "visible";
+        el.style.maxHeight = "none";
+    });
+    detail.querySelectorAll("table").forEach(tbl => {
+        tbl.style.width = "100%";
+        tbl.style.borderCollapse = "collapse";
+        tbl.style.pageBreakInside = "auto";
+    });
+    detail.querySelectorAll("th").forEach(th => {
+        th.style.background = "#f1f5f9";
+        th.style.color = "#1e293b";
+        th.style.padding = "6px 10px";
+        th.style.fontSize = "11px";
+    });
+    detail.querySelectorAll("td").forEach(td => {
+        td.style.padding = "5px 10px";
+        td.style.fontSize = "11px";
+        td.style.color = "#1e293b";
+        td.style.borderBottom = "1px solid #e2e8f0";
+    });
 }
-function closeEmailModal() {
-    document.getElementById("email-modal").classList.add("hidden");
-}
 
-async function sendEmail() {
-    const email = document.getElementById("email-input").value.trim();
-    if (!email || !email.includes("@")) {
-        document.getElementById("email-status").textContent = "Introduce un email válido.";
-        document.getElementById("email-status").className = "email-status error";
-        return;
-    }
 
-    const scenario = window._lastResultData?.scenario || "Recomendación";
-    const decision = window._lastResultData?.decision || "Sin recomendación.";
 
-    const statusEl = document.getElementById("email-status");
-    statusEl.textContent = "Enviando...";
-    statusEl.className = "email-status sending";
-
-    try {
-        const res = await fetch("/api/send-email", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ email, scenario, decision }),
-        });
-        const data = await res.json();
-
-        if (data.status === "ok") {
-            statusEl.textContent = "✓ Email enviado correctamente.";
-            statusEl.className = "email-status success";
-            setTimeout(closeEmailModal, 1800);
-        } else if (data.status === "no_smtp") {
-            // Fallback: open user's email client via mailto
-            const subject = encodeURIComponent(`Denodo Flick — ${scenario}`);
-            const body = encodeURIComponent(`${scenario}\n\n${decision}\n\n— Generado por Denodo Flick`);
-            window.open(`mailto:${encodeURIComponent(email)}?subject=${subject}&body=${body}`, "_blank");
-            statusEl.textContent = "Se ha abierto tu cliente de correo.";
-            statusEl.className = "email-status success";
-            setTimeout(closeEmailModal, 2200);
-        } else {
-            statusEl.textContent = data.error || "Error al enviar.";
-            statusEl.className = "email-status error";
-        }
-    } catch (err) {
-        statusEl.textContent = "Error de conexión.";
-        statusEl.className = "email-status error";
-    }
-}

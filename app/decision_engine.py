@@ -72,12 +72,12 @@ STATISTICS_QUERIES = {
     },
     "Actores": {
         "questions": [
-            f"Muestra los 15 actores con más películas en el catálogo. Filtra por primaryprofession que contenga 'actor' o 'actress'. Devuelve nombre y número de películas. {_STAT_FMT}",
-            f"Muestra los 15 actores con mayor popularidad media en sus películas (al menos 2 películas). Filtra por primaryprofession que contenga 'actor' o 'actress'. Devuelve nombre y popularidad media (2 decimales). {_STAT_FMT}",
+            f"Consulta la vista admin.actores. Muestra los 15 actores (primaryprofession que contenga 'actor' o 'actress') que aparecen en más títulos según la columna knownfortitles (cuenta los títulos separados por comas). Devuelve primaryname y el número de títulos. {_STAT_FMT}",
+            f"Consulta la vista admin.actores. Muestra los 15 actores (primaryprofession que contenga 'actor' o 'actress') más veteranos que sigan vivos (deathyear es nulo o vacío). Devuelve primaryname y birthyear, ordenados por birthyear ascendente. {_STAT_FMT}",
         ],
         "charts": [
-            {"type": "horizontalBar", "title": "Actores con más películas", "color": "#14b8a6"},
-            {"type": "bar", "title": "Actores con mayor popularidad media", "color": "#f97316"},
+            {"type": "horizontalBar", "title": "Actores con más títulos", "color": "#14b8a6"},
+            {"type": "bar", "title": "Actores veteranos aún vivos", "color": "#f97316"},
         ],
     },
 }
@@ -85,7 +85,7 @@ STATISTICS_QUERIES = {
 # ── Mapping de vistas fijas por escenario ────────────────────────────
 SCENARIO_VIEWS = {
     "production": "admin.movies",
-    "series_production": "admin.series",
+    "series_production": "admin.netflix",
     "actor_recommendation": "admin.actores",
 }
 
@@ -100,12 +100,12 @@ def resolve_scenario_view(scenario_key: str, params: dict | None = None) -> str 
 
     if scenario_key in ("investment", "distribution"):
         ct = (params or {}).get("content_type", "Películas")
-        return "admin.series" if ct == "Series" else "admin.movies"
+        return "admin.netflix" if ct == "Series" else "admin.movies"
 
     if scenario_key == "statistics":
         cat = (params or {}).get("stat_category", "Géneros")
         if cat == "Series":
-            return "admin.series"
+            return "admin.netflix"
         elif cat == "Actores":
             return "admin.actores"
         else:  # Géneros, Películas
@@ -167,7 +167,7 @@ SCENARIOS = {
             "¿Existen columnas sobre compañías de producción, países de producción o información temporal de las películas?",
         ],
         "metadata_questions_series": [
-            "¿Qué tablas y columnas contienen información sobre series (type = 'SHOW'), incluyendo géneros, puntuación (imdb_score, tmdb_score), popularidad (tmdb_popularity), temporadas (seasons) y clasificación por edades?",
+            "¿Qué tablas y columnas contienen información sobre series (type = 'SHOW'), incluyendo géneros, puntuación (imdb_score, tmdb_score), popularidad (tmdb_popularity), temporadas (seasons) y país de producción (production_countries)?",
             "¿Qué columnas indican el año de estreno, la duración (runtime), el país de producción y la clasificación por edades de las series?",
         ],
         "data_questions_template": [
@@ -198,8 +198,8 @@ SCENARIOS = {
             "¿Qué datos hay disponibles sobre la popularidad y recepción de películas por idioma o región?",
         ],
         "metadata_questions_series": [
-            "¿Qué tablas y columnas contienen información sobre series (type = 'SHOW'), incluyendo idioma, puntuación (imdb_score, tmdb_score), popularidad (tmdb_popularity) y país de producción?",
-            "¿Existen datos sobre el idioma original, el país de producción y la popularidad de series por región?",
+            "¿Qué tablas y columnas contienen información sobre series (type = 'SHOW'), incluyendo géneros, puntuación (imdb_score, tmdb_score), popularidad (tmdb_popularity), país de producción (production_countries) y temporadas (seasons)?",
+            "¿Existen datos sobre el país de producción, clasificación por edades y la popularidad de series?",
         ],
         "data_questions_template": [
             "¿Cuáles son los 10 idiomas con mayor ingreso (revenue) total y promedio por película?",
@@ -208,10 +208,10 @@ SCENARIOS = {
             "Para películas en idiomas distintos al inglés, ¿cuáles tienen mejor rendimiento comercial (revenue) y de crítica (vote_average)?",
         ],
         "data_questions_series": [
-            "¿Cuáles son los 10 idiomas con mayor número de series (type = 'SHOW') producidas y mayor puntuación media (imdb_score)? Muestra idioma, número de series, imdb_score promedio y tmdb_popularity promedio.",
-            "¿Cuáles son los idiomas con series mejor puntuadas (imdb_score) en promedio? Muestra los 10 principales con número de series y popularidad media.",
-            "¿Cuál es la tendencia de producción de series (type = 'SHOW') por idioma en los últimos años? ¿Qué idiomas están creciendo más?",
-            "Para series en idiomas distintos al inglés, ¿cuáles tienen mejor rendimiento (mayor tmdb_popularity e imdb_score)? Muestra las 10 principales.",
+            "¿Cuáles son los 10 países de producción (production_countries) con mayor número de series (type = 'SHOW') producidas y mayor puntuación media (imdb_score)? Muestra país, número de series, imdb_score promedio y tmdb_popularity promedio.",
+            "¿Cuáles son los países de producción con series mejor puntuadas (imdb_score) en promedio? Muestra los 10 principales con número de series y popularidad media (tmdb_popularity).",
+            "¿Cuál es la tendencia de producción de series (type = 'SHOW') por país de producción (production_countries) en los últimos años? ¿Qué países están creciendo más?",
+            "Para series producidas fuera de EE.UU., ¿cuáles tienen mejor rendimiento (mayor tmdb_popularity e imdb_score)? Muestra las 10 principales con título, país de producción, imdb_score y tmdb_popularity.",
         ],
         "parameters": [
             {"key": "content_type", "label": "Tipo de contenido", "type": "select", "options": ["Películas", "Series"]},
@@ -225,14 +225,14 @@ SCENARIOS = {
         "title": "🎭 ¿Qué actor contratar para un género?",
         "description": "Recomienda los mejores actores para un género cinematográfico concreto, basándose en su historial de películas, puntuaciones, popularidad e ingresos en ese género.",
         "metadata_questions": [
-            "¿Qué tablas y columnas contienen información sobre actores, incluyendo su nombre (primaryname), profesión (primaryprofession), año de nacimiento (birthyear), año de fallecimiento (deathyear) y las películas en las que han participado (movie_id, movie_title)?",
-            "¿Qué columnas de la tabla de actores contienen información sobre géneros (genres), puntuación (vote_average o popularity), ingresos (revenue o budget), sinopsis (overview), palabras clave (keywords) y compañías de producción (production_companies)?",
+            "¿Qué tablas y columnas contienen información sobre actores? Lista TODAS las columnas disponibles y sus tipos. Necesito saber si existe una columna con el NOMBRE del actor (por ejemplo primaryname, name, actor_name, title, o similar) y si existe alguna columna con el identificador (id, actor_id, nconst, etc.).",
+            "¿Qué columnas contienen información sobre géneros (genres), puntuación (vote_average o popularity), ingresos (revenue o budget) y cualquier otro campo relevante para relacionar actores con películas?",
         ],
         "data_questions_template": [
-            "¿Cuáles son los 15 actores con más películas en el género '{genre}'? Muestra el nombre del actor (primaryname), el número de películas en ese género, la popularidad media y el actor_id. Filtra por actores cuya primaryprofession contenga 'actor' o 'actress'.",
-            "¿Cuáles son los 15 actores con mayor popularidad media en películas del género '{genre}'? Muestra primaryname, popularidad media, número de películas en ese género y actor_id. Solo actores con al menos 2 películas en ese género.",
-            "¿Cuáles son las 10 películas mejor valoradas (por popularidad) del género '{genre}' y qué actores participaron en ellas? Muestra movie_title, primaryname, popularity y genres.",
-            "Para los actores más prolíficos en el género '{genre}', ¿cuál es la distribución de su trabajo en otros géneros? Muestra los 10 actores con más películas en '{genre}' y sus otros géneros frecuentes.",
+            "¿Cuáles son los 15 actores con más películas en el género '{genre}'? OBLIGATORIO: muestra el NOMBRE COMPLETO del actor (no su ID numérico). Si la columna de nombre se llama primaryname, name, actor_name o title, úsala. Incluye: nombre del actor, número de películas en ese género y popularidad media. Filtra por actores cuya profesión contenga 'actor' o 'actress' si esa columna existe.",
+            "¿Cuáles son los 15 actores con mayor popularidad media en películas del género '{genre}'? OBLIGATORIO: muestra el NOMBRE COMPLETO del actor (no su ID numérico). Incluye: nombre del actor, popularidad media y número de películas en ese género. Solo actores con al menos 2 películas en ese género.",
+            "¿Cuáles son las 10 películas mejor valoradas (por popularidad) del género '{genre}' y qué actores participaron en ellas? OBLIGATORIO: muestra el NOMBRE del actor y el título de la película, NO IDs numéricos. Incluye: título de película, nombre del actor, popularidad y géneros.",
+            "Para los actores más prolíficos en el género '{genre}', ¿cuál es la distribución de su trabajo en otros géneros? OBLIGATORIO: muestra NOMBRES de actores, no IDs. Muestra los 10 actores con más películas en '{genre}' y sus otros géneros frecuentes.",
         ],
         "parameters": [
             {"key": "genre", "label": "Género cinematográfico", "type": "select", "options": GENRE_OPTIONS},
@@ -275,8 +275,10 @@ def _build_metadata_prefix(metadata_context: str, use_views: str | None = None) 
     view_instruction = ""
     if use_views:
         view_instruction = (
-            f"\nIMPORTANTE: Usa ÚNICAMENTE la(s) vista(s) {use_views}. "
-            f"NO consultes ni hagas JOIN con otras vistas o tablas que no sean {use_views}.\n"
+            f"\nIMPORTANTE: Consulta ÚNICAMENTE la vista {use_views}. "
+            f"NO hagas JOIN ni consultes NINGUNA otra vista o tabla. "
+            f"Solo usa columnas que existan en {use_views}. "
+            f"Si un filtro menciona una columna que no existe en {use_views}, ignóralo.\n"
         )
     return (
         "CONTEXTO IMPORTANTE — Estructura de datos descubierta en la fase de análisis:\n"
@@ -294,6 +296,7 @@ def build_param_context(params: dict | None) -> str:
         return ""
 
     filters = []
+    is_series = params.get("content_type") == "Series"
     if params.get("content_type"):
         ct = params["content_type"]
         if ct == "Series":
@@ -302,7 +305,7 @@ def build_param_context(params: dict | None) -> str:
             filters.append("analiza SOLO películas, NO series")
     if params.get("genre"):
         filters.append(f"género '{params['genre']}'")
-    if params.get("budget_range"):
+    if params.get("budget_range") and not is_series:
         filters.append(f"con presupuesto máximo de {params['budget_range']}")
     if params.get("min_year"):
         filters.append(f"considerando solo registros desde el año {params['min_year']}")
@@ -310,7 +313,7 @@ def build_param_context(params: dict | None) -> str:
         filters.append(f"hasta el año {params['max_year']}")
     if params.get("min_rating"):
         filters.append(f"con rating mínimo de {params['min_rating']}")
-    if params.get("language"):
+    if params.get("language") and not is_series:
         filters.append(f"idioma '{params['language']}'")
     if params.get("min_popularity"):
         filters.append(f"con popularidad mínima de {params['min_popularity']}")
@@ -456,9 +459,10 @@ async def run_decision_pipeline_stream(
     view_restriction = ""
     if use_views:
         view_restriction = (
-            f" Analiza EXCLUSIVAMENTE la(s) vista(s): {use_views}. "
-            f"NO incluyas información de otras vistas ni tablas. "
-            f"Solo describe las columnas y estructura de {use_views}."
+            f" Usa ÚNICAMENTE la vista {use_views}. "
+            f"NO menciones, consultes ni hagas referencia a NINGUNA otra vista o tabla. "
+            f"Solo describe las columnas y estructura de {use_views}. "
+            f"Si algún campo no existe en {use_views}, ignóralo."
         )
 
     for i, mq in enumerate(metadata_questions, 1):
@@ -475,6 +479,9 @@ async def run_decision_pipeline_stream(
             "message": f"Fase 1: Explorando metadatos ({i}/{n_meta})...",
         }
         mq_final = mq + view_restriction
+        # Inyectar nombre de vista directamente al inicio para evitar ambigüedad
+        if use_views:
+            mq_final = f"Describe SOLO la vista {use_views} (ignora todas las demás tablas): " + mq_final
         try:
             response = await answer_metadata_question(mq_final, use_views=use_views)
             results["phase1_metadata"].append({
@@ -516,6 +523,9 @@ async def run_decision_pipeline_stream(
             "message": f"Fase 2: Consultando datos ({i}/{n_data})...",
         }
         dq_final = metadata_prefix + dq + (param_context if param_context else "")
+        # Inyectar nombre de vista directamente en la pregunta para evitar ambigüedad
+        if use_views:
+            dq_final = f"Consultando SOLO la vista {use_views} (no uses ninguna otra tabla): " + dq_final
         try:
             response = await answer_data_question(dq_final, use_views=use_views)
             results["phase2_data"].append({
@@ -568,6 +578,7 @@ async def run_decision_pipeline_stream(
             f"{param_info}"
             f"{view_hint}"
             f"Genera una RECOMENDACIÓN FINAL concreta y fundamentada para el siguiente escenario: {scenario['title']}. "
+            f"IMPORTANTE: Usa SIEMPRE nombres propios de personas, películas, series o géneros. NUNCA muestres IDs numéricos en la recomendación; si los datos solo contienen IDs, indica que el nombre no está disponible en lugar de mostrar el ID. "
             f"No pidas clarificaciones ni menciones ambigüedades, da directamente tu mejor recomendación. "
             f"La recomendación debe incluir:\n"
             f"1. La decisión concreta (qué hacer)\n"
